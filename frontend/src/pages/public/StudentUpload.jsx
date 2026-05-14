@@ -14,6 +14,10 @@ const StudentUpload = () => {
     year: new Date().getFullYear(),
     external_link: ''
   });
+  
+  // 🔥 TAMBAHAN: State untuk menyimpan role pengguna 🔥
+  const [userRole, setUserRole] = useState('user');
+  
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -37,6 +41,8 @@ const StudentUpload = () => {
       });
     } else {
       setFormData(prev => ({ ...prev, document_author: user.name || '' }));
+      // 🔥 TAMBAHAN: Simpan role ke dalam state saat komponen dimuat 🔥
+      setUserRole(user.role || 'user'); 
     }
   }, [navigate]);
 
@@ -60,11 +66,11 @@ const StudentUpload = () => {
       });
     }
 
-    // VALIDASI UKURAN FILE
-    let maxSizeMB = 5; 
+    // 🔥 PERBAIKAN: VALIDASI UKURAN FILE (Menyesuaikan Dosen & Mahasiswa) 🔥
+    let maxSizeMB = 5; // Default 5MB (Cocok untuk Jurnal / Penelitian / Modul)
     if (formData.category === 'Tugas Akhir' || formData.category === 'Skripsi') {
       maxSizeMB = 15;
-    } else if (formData.category === 'Laporan Magang') {
+    } else if (formData.category === 'Laporan Magang' || formData.category === 'Buku Ajar') {
       maxSizeMB = 10;
     }
 
@@ -90,12 +96,8 @@ const StudentUpload = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      // 🔥 PERBAIKAN: Scroll ke atas secara halus sebelum menampilkan status sukses
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      
       setSuccess(true);
-      
-      // Tunggu sebentar lalu pindah halaman
       setTimeout(() => navigate('/dashboard-student'), 3500);
     } catch (error) {
       console.error(error);
@@ -108,7 +110,6 @@ const StudentUpload = () => {
     }
   };
 
-  // 🔥 PERBAIKAN UI SUKSES: Dibuat Full Screen & Center agar tidak perlu scroll
   if (success) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center bg-slate-50 dark:bg-slate-900 px-4">
@@ -172,9 +173,21 @@ const StudentUpload = () => {
                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Kategori <span className="text-rose-500">*</span></label>
                 <select required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:border-blue-500 outline-none dark:text-white transition-all" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
                   <option value="">Pilih Kategori</option>
-                  <option value="Laporan Magang">Laporan Magang</option>
-                  <option value="Tugas Akhir">Tugas Akhir</option>
-                  <option value="Jurnal Akademik">Jurnal Akademik</option>
+                  {/* 🔥 PERBAIKAN: Kategori Dinamis Berdasarkan Role 🔥 */}
+                  {userRole === 'dosen' ? (
+                    <>
+                      <option value="Jurnal Akademik">Jurnal Akademik</option>
+                      <option value="Buku Ajar">Buku Ajar</option>
+                      <option value="Penelitian">Penelitian</option>
+                      <option value="Modul Ajar">Modul Ajar</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Laporan Magang">Laporan Magang</option>
+                      <option value="Tugas Akhir">Tugas Akhir</option>
+                      <option value="Skripsi">Skripsi</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
@@ -220,7 +233,8 @@ const StudentUpload = () => {
                     <>
                       <FiUploadCloud className="mx-auto text-4xl text-slate-400 mb-2"/>
                       <p className="text-sm font-bold text-slate-600 dark:text-slate-400">Klik atau seret file PDF di sini</p>
-                      <p className="text-xs text-slate-500 mt-1">Max: 15MB (TA), 10MB (Magang), 5MB (Jurnal)</p>
+                      {/* 🔥 PERBAIKAN: Teks keterangan max size disesuaikan 🔥 */}
+                      <p className="text-xs text-slate-500 mt-1">Max: 15MB (TA/Skripsi), 10MB (Magang/Buku), 5MB (Jurnal)</p>
                     </>
                   )}
                 </div>
