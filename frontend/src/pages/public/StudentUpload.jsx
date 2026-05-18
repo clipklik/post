@@ -40,10 +40,14 @@ const StudentUpload = () => {
         onConfirm: () => navigate('/login')
       });
     } else {
-      setFormData(prev => ({ ...prev, document_author: user.name || '' }));
-      // 🔥 TAMBAHAN: Simpan role ke dalam state saat komponen dimuat 🔥
-      setUserRole(user.role || 'user'); 
-    }
+          setUserRole(user.role || 'user'); 
+          // 🔥 Tangkap department dari localstorage
+          setFormData(prev => ({ 
+            ...prev, 
+            document_author: user.name || '',
+            department: user.department || '' 
+          }));
+        }
   }, [navigate]);
 
   const handleSubmit = async (e) => {
@@ -190,15 +194,12 @@ const StudentUpload = () => {
                   )}
                 </select>
               </div>
-              <div>
+                <div>
                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Program Studi <span className="text-rose-500">*</span></label>
-                <select required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl focus:border-blue-500 outline-none dark:text-white transition-all" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})}>
-                  <option value="">Pilih Prodi</option>
-                  <option value="D3 Teknik Informatika">D3 Teknik Informatika</option>
-                  <option value="D3 Teknik Mesin">D3 Teknik Mesin</option>
-                  <option value="D3 Teknik Otomotif">D3 Teknik Otomotif</option>
-                  <option value="D3 Teknik Elektronika">D3 Teknik Elektronika</option>
-                </select>
+                {/* 🔥 Diubah menjadi kotak statis (Paten) mirip dengan Penulis 🔥 */}
+                <div className="relative font-bold text-slate-500 italic bg-slate-100 dark:bg-slate-900/50 p-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                   {formData.department || 'Prodi belum diatur'}
+                </div>
               </div>
             </div>
 

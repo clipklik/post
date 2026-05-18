@@ -3,17 +3,20 @@ import { Link, useLocation } from "react-router-dom";
 import { 
   FiSearch, FiEdit2, FiTrash2, FiUserPlus, FiLock, FiUnlock, 
   FiUserCheck, FiUserX, FiShield, FiKey, FiUploadCloud, FiCheckSquare, 
-  FiX, FiCheckCircle, FiAlertCircle
+  FiX, FiCheckCircle, FiAlertCircle, FiMail
 } from "react-icons/fi";
 import axios from "axios";
 
 const ManageUsers = () => {
   const location = useLocation();
 
+  // 🔥 AMBIL DATA USER YANG SEDANG LOGIN 🔥
+  const currentUser = JSON.parse(localStorage.getItem('user'));
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // States untuk Filter & Tabs (Bisa menerima perintah dari notifikasi)
+  // States untuk Filter & Tabs
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "approved"); 
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("Semua");
@@ -47,19 +50,16 @@ const ManageUsers = () => {
     fetchUsers();
   }, []);
 
-  // Kosongkan checklist setiap kali pindah tab
   useEffect(() => {
     setSelectedUsers([]);
   }, [activeTab]);
 
-  // Pantau perubahan dari navigasi (misal diklik dari toast notifikasi)
   useEffect(() => {
     if (location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state]);
 
-  // FILTERING LOGIC
   const filteredUsers = users.filter((user) => {
     const status = user.approval_status || 'approved'; 
     if (status !== activeTab) return false;
@@ -82,7 +82,7 @@ const ManageUsers = () => {
   const closePopup = () => setModal({ ...modal, isOpen: false });
 
   // ========================================================
-  // FITUR: IMPORT EXCEL (Mendeteksi Duplikat)
+  // FITUR: IMPORT EXCEL
   // ========================================================
   const handleExcelUpload = async (e) => {
     e.preventDefault();
@@ -111,7 +111,6 @@ const ManageUsers = () => {
           <p className="text-slate-600 dark:text-slate-300 mb-3 text-center">
             {response.data.message}
           </p>
-          
           {hasErrors && (
             <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl p-3 max-h-32 overflow-y-auto mt-2 text-left">
               <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mb-1.5 uppercase tracking-wide flex items-center gap-1.5">
@@ -128,16 +127,10 @@ const ManageUsers = () => {
       );
 
       setModal({ 
-        isOpen: true, 
-        type: hasErrors ? 'warning' : 'success', 
-        title: hasErrors ? 'Import Selesai (Ada Duplikat)' : 'Import Berhasil!', 
-        message: detailMessage, 
-        isAlert: true, 
-        onConfirm: closePopup 
+        isOpen: true, type: hasErrors ? 'warning' : 'success', title: hasErrors ? 'Import Selesai (Ada Duplikat)' : 'Import Berhasil!', 
+        message: detailMessage, isAlert: true, onConfirm: closePopup 
       });
-
     } catch (error) {
-      console.error("Gagal import Excel:", error);
       setModal({ isOpen: true, type: 'danger', title: 'Import Gagal', message: error.response?.data?.message || "Gagal mengimport data Excel.", isAlert: true, onConfirm: closePopup });
     } finally {
       setUploadingExcel(false);
@@ -145,18 +138,24 @@ const ManageUsers = () => {
   };
 
   // ========================================================
-  // FITUR: CHECKBOX MASSAL
+  // FITUR: CHECKBOX MASSAL (DENGAN PROTEKSI ADMIN)
   // ========================================================
   const toggleSelectUser = (id) => {
     setSelectedUsers(prev => prev.includes(id) ? prev.filter(userId => userId !== id) : [...prev, id]);
   };
 
   const selectAllUsers = () => {
-    if (selectedUsers.length === filteredUsers.length) setSelectedUsers([]);
-    else setSelectedUsers(filteredUsers.map(u => u.id));
+    const selectableUsers = filteredUsers
+      .filter(u => u.id !== currentUser?.id && u.role !== 'admin')
+      .map(u => u.id);
+    
+    if (selectedUsers.length === selectableUsers.length && selectableUsers.length > 0) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(selectableUsers);
+    }
   };
 
-  // AKSI: Setujui Terpilih
   const handleApproveSelected = async () => {
     if (selectedUsers.length === 0) return;
     setModal({
@@ -173,32 +172,22 @@ const ManageUsers = () => {
     });
   };
 
-  // 🔥 AKSI BARU: Tolak/Hapus Terpilih 🔥
   const handleRejectSelected = async () => {
     if (selectedUsers.length === 0) return;
     setModal({
-      isOpen: true, 
-      type: 'danger', 
-      title: 'Tolak & Hapus Pendaftar?', 
-      message: `Anda akan menolak dan menghapus permanen ${selectedUsers.length} akun yang menunggu persetujuan ini. Tindakan ini tidak dapat dibatalkan. Lanjutkan?`, 
-      isAlert: false,
+      isOpen: true, type: 'danger', title: 'Tolak & Hapus Pendaftar?', message: `Anda akan menolak dan menghapus permanen ${selectedUsers.length} akun yang menunggu persetujuan ini. Tindakan ini tidak dapat dibatalkan. Lanjutkan?`, isAlert: false,
       onConfirm: async () => {
         try {
-          // Eksekusi hapus massal
           await Promise.all(selectedUsers.map(id => axios.delete(`http://localhost:5000/api/auth/users/${id}`)));
-          
-          setSelectedUsers([]); 
-          fetchUsers(); 
+          setSelectedUsers([]); fetchUsers(); 
           setModal({ isOpen: true, type: 'success', title: 'Berhasil Dihapus!', message: `${selectedUsers.length} pendaftar berhasil ditolak dan dihapus.`, isAlert: true, onConfirm: closePopup });
         } catch (error) {
-          console.error("Gagal menolak pendaftar:", error);
           setModal({ isOpen: true, type: 'danger', title: 'Gagal', message: 'Terjadi kesalahan saat menghapus data massal.', isAlert: true, onConfirm: closePopup });
         }
       }
     });
   };
 
-  // AKSI: Kunci/Buka Terpilih
   const handleLockUnlockSelected = async (isLock) => {
     if (selectedUsers.length === 0) return;
     setModal({
@@ -331,7 +320,7 @@ const ManageUsers = () => {
         </div>
       </div>
 
-      {/* TABS: AKTIF vs MENUNGGU PERSETUJUAN */}
+      {/* TABS */}
       <div className="flex items-center gap-4 mb-6 border-b border-slate-200 dark:border-slate-800">
         <button onClick={() => setActiveTab('approved')} className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'approved' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
           Pengguna Aktif
@@ -346,7 +335,7 @@ const ManageUsers = () => {
         </button>
       </div>
 
-      {/* 🔥 MENU AKSI CHECKBOX MASSAL (Dengan Tombol Tolak/Hapus Baru) 🔥 */}
+      {/* MENU AKSI CHECKBOX MASSAL */}
       {selectedUsers.length > 0 && (
         <div className={`mb-4 p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 border ${activeTab === 'pending' ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-500/10 dark:border-indigo-500/30' : 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700'}`}>
           <p className={`text-sm font-bold ${activeTab === 'pending' ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>
@@ -400,7 +389,12 @@ const ManageUsers = () => {
             <thead>
               <tr className="bg-slate-50/50 dark:bg-[#0B1121]/50 border-b border-slate-100 dark:border-slate-800">
                 <th className="py-3 px-4 w-10">
-                  <input type="checkbox" onChange={selectAllUsers} checked={filteredUsers.length > 0 && selectedUsers.length === filteredUsers.length} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                  <input 
+                    type="checkbox" 
+                    onChange={selectAllUsers} 
+                    checked={filteredUsers.length > 0 && selectedUsers.length > 0 && selectedUsers.length === filteredUsers.filter(u => u.id !== currentUser?.id && u.role !== 'admin').length} 
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" 
+                  />
                 </th>
                 <th className="py-3 px-6 text-[10px] font-bold text-slate-400 uppercase">Pengguna</th>
                 <th className="py-3 px-6 text-[10px] font-bold text-slate-400 uppercase">Kontak & ID</th>
@@ -415,25 +409,54 @@ const ManageUsers = () => {
               ) : (
                 filteredUsers.map((user) => {
                   const isLocked = user.is_locked === 1 || user.is_locked === true;
+                  const isCurrentUser = currentUser?.id === user.id;
+
                   return (
                     <tr key={user.id} className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${isLocked && activeTab === 'approved' ? 'bg-rose-50/30 dark:bg-rose-900/10' : ''}`}>
+                      
+                      {/* KOLOM 1: CHECKBOX */}
                       <td className="py-3 px-4">
-                        <input type="checkbox" checked={selectedUsers.includes(user.id)} onChange={() => toggleSelectUser(user.id)} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                        <input 
+                          type="checkbox" 
+                          checked={selectedUsers.includes(user.id)} 
+                          onChange={() => toggleSelectUser(user.id)} 
+                          disabled={isCurrentUser || user.role === 'admin'} 
+                          className={`w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 ${isCurrentUser || user.role === 'admin' ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                        />
                       </td>
+
+                      {/* KOLOM 2: PENGGUNA (AVATAR & NAMA) */}
                       <td className="py-3 px-6">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-inner shrink-0 ${isLocked && activeTab === 'approved' ? 'bg-slate-400' : 'bg-gradient-to-br from-indigo-500 to-blue-600'}`}>
                             {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                           </div>
                           <div>
-                            <p className={`font-bold text-sm leading-tight ${isLocked && activeTab === 'approved' ? 'text-slate-500 dark:text-slate-400 line-through decoration-slate-300' : 'text-slate-800 dark:text-white'}`}>{user.name}</p>
-                            <p className="text-[11px] text-slate-500 font-mono mt-0.5">{user.nim_nidn || '-'}</p>
+                            <p className={`font-bold text-sm leading-tight flex items-center gap-2 ${isLocked && activeTab === 'approved' ? 'text-slate-500 dark:text-slate-400 line-through decoration-slate-300' : 'text-slate-800 dark:text-white'}`}>
+                              {user.name}
+                              {isCurrentUser && <span className="bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded-full">Anda</span>}
+                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-6"><p className="text-xs text-slate-600 dark:text-slate-300 font-medium">{user.email || '-'}</p></td>
+
+                      {/* KOLOM 3: KONTAK & ID (USERNAME/NIM + EMAIL) */}
+                      <td className="py-3 px-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                            {user.username || user.nim_nidn || '-'}
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                            <FiMail size={10} className="shrink-0" />
+                            {user.email ? user.email : <i className="text-rose-400">Email belum diisi</i>}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* KOLOM 4: AKSES */}
                       <td className="py-3 px-6 text-center">{getRoleBadge(user.role)}</td>
                       
+                      {/* KOLOM 5: STATUS */}
                       {activeTab === 'approved' && (
                         <td className="py-3 px-6 text-center">
                           {isLocked ? (
@@ -444,20 +467,33 @@ const ManageUsers = () => {
                         </td>
                       )}
 
+                      {/* KOLOM 6: AKSI */}
                       <td className="py-3 px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {activeTab === 'approved' && (
+                          {isCurrentUser ? (
+                            <span className="text-[10px] text-slate-400 font-medium italic bg-slate-100 dark:bg-slate-800/50 px-2.5 py-1 rounded-md">
+                              Akun Anda
+                            </span>
+                          ) : user.role === 'admin' ? (
+                            <span className="text-[10px] text-indigo-500 font-medium italic bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded-md" title="Sesama Admin tidak bisa saling ubah">
+                              Sesama Admin
+                            </span>
+                          ) : (
                             <>
-                              <button onClick={() => handleToggleLockClick(user.id, user.is_locked)} title={isLocked ? "Buka Kunci" : "Kunci Akun"} className={`p-1.5 rounded-md transition-colors border ${isLocked ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'text-slate-400 border-transparent hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-slate-700'}`}>
-                                {isLocked ? <FiUnlock size={16} /> : <FiLock size={16} />}
-                              </button>
-                              <button onClick={() => handleResetPasswordClick(user.id, user.name)} title="Reset Sandi" className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors dark:hover:bg-slate-700"><FiKey size={16} /></button>
-                              <Link to={`/admin/users/edit/${user.id}`} title="Edit" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors dark:hover:bg-slate-700"><FiEdit2 size={16} /></Link>
+                              {activeTab === 'approved' && (
+                                <>
+                                  <button onClick={() => handleToggleLockClick(user.id, user.is_locked)} title={isLocked ? "Buka Kunci" : "Kunci Akun"} className={`p-1.5 rounded-md transition-colors border ${isLocked ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'text-slate-400 border-transparent hover:bg-amber-50 hover:text-amber-500 dark:hover:bg-slate-700'}`}>
+                                    {isLocked ? <FiUnlock size={16} /> : <FiLock size={16} />}
+                                  </button>
+                                  <button onClick={() => handleResetPasswordClick(user.id, user.name)} title="Reset Sandi" className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors dark:hover:bg-slate-700"><FiKey size={16} /></button>
+                                  <Link to={`/admin/users/edit/${user.id}`} title="Edit" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors dark:hover:bg-slate-700"><FiEdit2 size={16} /></Link>
+                                </>
+                              )}
+                              <button onClick={() => handleDeleteClick(user.id)} title="Hapus" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors dark:hover:bg-slate-700"><FiTrash2 size={16} /></button>
                             </>
                           )}
-                          <button onClick={() => handleDeleteClick(user.id)} title="Hapus" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors dark:hover:bg-slate-700"><FiTrash2 size={16} /></button>
                         </div>
-                      </td>
+                      </td>                    
                     </tr>
                   );
                 })
@@ -467,7 +503,7 @@ const ManageUsers = () => {
         </div>
       </div>
 
-      {/* MODAL UPLOAD EXCEL */}
+      {/* MODAL UPLOAD EXCEL DAN MODAL UMUM */}
       {showExcelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-[#131C31] rounded-3xl p-6 w-full max-w-md shadow-2xl">
@@ -479,7 +515,7 @@ const ManageUsers = () => {
               <div className="border-2 border-dashed border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-6 rounded-2xl text-center mb-6 relative hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors">
                 <FiUploadCloud className="mx-auto text-4xl text-emerald-500 mb-3" />
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Klik atau Drag File .xlsx</p>
-                <p className="text-xs text-slate-500">Pastikan kolom header: nama, nim, tanggal_lahir, prodi</p>
+                <p className="text-xs text-slate-500">Pastikan kolom header: nama, nim, email, tanggal_lahir, prodi</p>
                 <input type="file" accept=".xlsx, .xls" onChange={(e) => setExcelFile(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required />
               </div>
               {excelFile && <p className="text-xs font-bold text-emerald-600 mb-4 text-center bg-emerald-50 p-2 rounded-lg">File: {excelFile.name}</p>}
@@ -491,7 +527,6 @@ const ManageUsers = () => {
         </div>
       )}
 
-      {/* MODAL KONFIRMASI & NOTIFIKASI MODERN */}
       {modal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200">
           <div className="bg-white dark:bg-[#131C31] rounded-[2rem] p-8 w-full max-w-sm shadow-2xl flex flex-col items-center text-center border border-slate-100 dark:border-slate-800">
@@ -503,12 +538,9 @@ const ManageUsers = () => {
               {modal.type === 'danger' ? <FiTrash2 size={36} /> : modal.title.includes('Reset') ? <FiKey size={36} /> : modal.type === 'warning' ? <FiAlertCircle size={36} /> : <FiCheckCircle size={36} />}
             </div>
             <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">{modal.title}</h3>
-            
-            {/* Memungkinkan render HTML/JSX dari state message */}
             <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed px-2 w-full flex justify-center">
               {modal.message}
             </div>
-
             <div className="flex w-full gap-3">
               {!modal.isAlert && (
                 <button onClick={closePopup} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">

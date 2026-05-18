@@ -5,7 +5,7 @@ import AdminRoute from './components/AdminRoute';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
-import AdminLayout from './layouts/AdminLayout'; // Di folder komputermu ini ada di components/AdminLayout atau layouts/AdminLayout? Sesuai kodemu ini di layouts/
+import AdminLayout from './layouts/AdminLayout'; 
 
 // Pages (Public & Auth)
 import Home from './pages/public/Home';
@@ -19,6 +19,11 @@ import StudentDashboard from './pages/public/StudentDashboard';
 import StudentEditDoc from './pages/public/StudentEditDoc'; 
 import Profile from './pages/public/Profile'; 
 
+// 🔥 TAMBAHAN IMPORT UNTUK FITUR LUPA SANDI 🔥
+import ForgotPassword from './pages/public/ForgotPassword';
+import ResetPassword from './pages/public/ResetPassword';
+
+
 // Pages (Admin)
 import ManageDocs from './pages/admin/ManageDocs';
 import UploadDocument from './pages/admin/UploadDocument';
@@ -27,18 +32,18 @@ import EditDoc from './pages/admin/EditDoc';
 import EditUser from './pages/admin/EditUser';
 import AddUser from './pages/admin/AddUser';
 import ManageUsers from './pages/admin/ManageUsers';
-import Settings from './pages/admin/Settings'; // 🔥 IMPORT HALAMAN SETTINGS DI SINI 🔥
+import Settings from './pages/admin/Settings'; 
 import { Toaster } from 'react-hot-toast';
 
 const App = () => {
   return (
     <BrowserRouter>
-      {/* 🔥 2. TAMBAHKAN TOASTER DI SINI (Posisi Bawah Kanan) 🔥 */}
+      {/* TOASTER UNTUK NOTIFIKASI MODERN */}
       <Toaster 
         position="bottom-right" 
         toastOptions={{
           style: {
-            background: '#1e293b', // Warna gelap elegan
+            background: '#1e293b', 
             color: '#fff',
             borderRadius: '12px',
             padding: '16px',
@@ -70,10 +75,13 @@ const App = () => {
         {/* === RUTE AUTH === */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        
+        {/* 🔥 RUTE BARU LUPA SANDI 🔥 */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
       
 
         {/* === RUTE ADMIN (SANGAT RAHASIA) === */}
-        {/* Semua rute di dalam AdminRoute hanya bisa diakses jika role = 'admin' */}
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Dashboard />} />
@@ -87,10 +95,9 @@ const App = () => {
             {/* Manajemen Pengguna */}
             <Route path="users" element={<ManageUsers />} />
             <Route path="users/add" element={<AddUser />} />
-            <Route path="users/edit/:id" element={<EditUser />} /> {/* PASTIKAN BARIS INI ADA */}
+            <Route path="users/edit/:id" element={<EditUser />} />
 
-
-            {/* 🔥 RUTE PENGATURAN SISTEM (BACKUP DB) DI SINI 🔥 */}
+            {/* RUTE PENGATURAN SISTEM (BACKUP DB) */}
             <Route path="settings" element={<Settings />} />
           </Route>
         </Route>

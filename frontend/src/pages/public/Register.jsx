@@ -2,19 +2,20 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FiUser, FiCalendar, FiBookOpen, 
-  FiCreditCard, FiArrowLeft, FiCheckCircle, FiArrowRight, FiAlertCircle
+  FiCreditCard, FiArrowLeft, FiCheckCircle, FiArrowRight, FiAlertCircle, FiMail
 } from 'react-icons/fi';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-
 
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     nim: '',
+    email: '', 
     tanggal_lahir: '',
-    department: 'Teknik Informatika'
+    password: '',
+    department: 'Teknik Informatika' // Set default value agar tidak kosong
   });
   
   const [loading, setLoading] = useState(false);
@@ -25,49 +26,45 @@ const Register = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  // ✅ FUNGSI HANDLE CHANGE YANG BENAR
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // 🔥 TAMBAHKAN SATPAM FORMAT NIM DI SINI 🔥
-    // Pola: 2 angka + titik + 1 angka + titik + 1 angka + titik + 4 angka
     const nimPattern = /^\d{2}\.\d\.\d\.\d{4}$/; 
     
     if (!nimPattern.test(formData.nim)) {
-      return setError('Format NIM tidak valid! Gunakan titik sesuai format kampus (Contoh: 23.1.9.0042)');
+      return setError('Format NIM tidak valid! Gunakan titik (Contoh: 23.1.9.0042)');
     }
 
     try {
       setLoading(true);
       
-      // Mengubah format YYYY-MM-DD menjadi YYYYMMDD untuk dijadikan password
       const formattedPassword = formData.tanggal_lahir.replace(/-/g, '');
       
-      // Menyiapkan data yang sinkron dengan backend
+      // ✅ PERBAIKAN: Memasukkan email ke dalam data yang dikirim ke Backend
       const dataToSubmit = {
         name: formData.name,
         nim: formData.nim, 
+        email: formData.email, // Data email sekarang ikut dikirim
         tanggal_lahir: formData.tanggal_lahir,
-        password: formattedPassword, // Tanggal lahir disulap jadi password
+        password: formattedPassword, 
         department: formData.department
       };
 
-      // Mengirimkan data asli ke endpoint backend
       const response = await axios.post('http://localhost:5000/api/auth/register', dataToSubmit);
       
       if (response.status === 201) {
         setLoading(false);
         setSuccess(true);
-        // Jika sukses, arahkan ke halaman login setelah 4 detik
         setTimeout(() => navigate('/login'), 4000);
       }
 
     } catch (err) {
-      // Menangkap pesan error jika NIM sudah terdaftar atau server bermasalah
       setError(err.response?.data?.message || 'Terjadi kesalahan saat mendaftar.');
       setLoading(false);
     }
@@ -119,7 +116,6 @@ const handleSubmit = async (e) => {
             </div>
           )}
 
-          {/* KONDISI SUKSES vs FORM */}
           {success ? (
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }} 
@@ -148,13 +144,15 @@ const handleSubmit = async (e) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              {/* ✅ PERBAIKAN LAYOUT: NIM dan Tanggal Lahir dibuat Sejajar di Desktop, Atas-Bawah di HP */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
                 {/* NIM */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-3">NIM</label>
                   <div className="relative mt-1">
                     <FiCreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-                    <input type="text" name="nim" value={formData.nim} onChange={handleChange} required placeholder="Misal: 23.1.0042" 
+                    <input type="text" name="nim" value={formData.nim} onChange={handleChange} required placeholder="Misal: 23.1.9.0042" 
                       className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm text-slate-800 dark:text-white transition-colors" />
                   </div>
                 </div>
@@ -168,16 +166,35 @@ const handleSubmit = async (e) => {
                       className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm text-slate-800 dark:text-white transition-colors cursor-pointer" />
                   </div>
                 </div>
+
               </div>
 
-              {/* INFO TAMBAHAN BAWAH INPUT */}
-              <div className="flex justify-between px-3 -mt-2">
+              {/* INFO TAMBAHAN BAWAH INPUT NIM & TGL LAHIR */}
+              <div className="flex flex-col sm:flex-row sm:justify-between px-3 -mt-2 gap-1">
                 <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">*NIM akan menjadi Username</p>
-                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">*Tgl Lahir akan menjadi Password</p>
+                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 sm:text-right">*Tgl Lahir akan menjadi Password</p>
+              </div>
+
+              {/* ✅ PERBAIKAN LAYOUT: Email dipisah 1 baris penuh agar tidak terjepit */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-3">Email Aktif</label>
+                <div className="relative mt-1">
+                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  <input 
+                    type="email" 
+                    name="email" 
+                    required 
+                    placeholder="Contoh: rosalia@gmail.com"
+                    value={formData.email} 
+                    onChange={handleChange} 
+                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm text-slate-800 dark:text-white transition-colors" 
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 mt-1.5 ml-2 font-medium">*Pastikan email aktif untuk pemulihan password jika lupa.</p>
               </div>
 
               {/* PROGRAM STUDI */}
-              <div className="pt-2">
+              <div className="pt-1">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-3">Program Studi</label>
                 <div className="relative mt-1">
                   <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 z-10" />
