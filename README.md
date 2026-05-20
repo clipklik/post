@@ -1,8 +1,4 @@
-Ini dia versi **README.md** yang sudah aku perbarui secara menyeluruh! Aku sudah menambahkan fitur PWA, validasi ukuran file pintar, sinkronisasi data otomatis, teknologi PWA di bagian *Tech Stack*, serta instruksi khusus untuk menjalankan mode PWA.
 
-Silakan **salin (copy)** semua teks di bawah ini dan **timpa (paste)** ke dalam file `README.md` kamu:
-
-```markdown
 # 🎓 E-Repository Politeknik Baja Tegal (PBJT)
 
 Sistem Informasi Repositori Institusi berbasis web yang dirancang untuk mengelola, menyimpan, dan mempublikasikan karya ilmiah serta dokumen akademik secara digital, terstruktur, dan aman.
