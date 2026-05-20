@@ -162,18 +162,26 @@ exports.deleteDoc = (req, res) => {
 // 7. Update Dokumen (Edit)
 exports.updateDoc = (req, res) => {
     const docId = req.params.id;
-    const { title, document_author, year, category, department, abstract, external_url } = req.body;
+    
+    // 🔥 PENGAMAN: Jika ada data kosong, kasih default value biar MySQL gak crash
+    const title = req.body.title || 'Tanpa Judul';
+    const document_author = req.body.document_author || 'Anonim';
+    const year = req.body.year || new Date().getFullYear();
+    const category = req.body.category || 'Umum';
+    const department = req.body.department || 'Umum';
+    const abstract = req.body.abstract || '';
+    const external_url = req.body.external_url || req.body.external_link || null;
 
     if (req.file) {
         const newPath = `uploads/${req.file.filename}`;
         
         db.query("SELECT file_path FROM documents WHERE id = ?", [docId], (err, results) => {
-            if (!err && results.length > 0) {
+            if (!err && results.length > 0 && results[0].file_path) {
                 const oldFile = path.join(__dirname, "../", results[0].file_path);
-                if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+                // Try-catch agar server gak mati kalau file lama udah kehapus duluan
+                try { if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile); } catch (e) { console.error("Abaikan: File lama tidak ada"); }
             }
             
-            // 🔥 TAMBAHAN: status='Pending' 🔥
             const sql = `UPDATE documents SET title=?, document_author=?, year=?, category=?, department=?, abstract=?, file_path=?, external_url=?, status='Pending' WHERE id=?`;
             
             db.query(sql, [title, document_author, year, category, department, abstract, newPath, external_url, docId], (updErr) => {
@@ -182,7 +190,6 @@ exports.updateDoc = (req, res) => {
             });
         });
     } else {
-        // 🔥 TAMBAHAN: status='Pending' 🔥
         const sql = `UPDATE documents SET title=?, document_author=?, year=?, category=?, department=?, abstract=?, external_url=?, status='Pending' WHERE id=?`;
         
         db.query(sql, [title, document_author, year, category, department, abstract, external_url, docId], (updErr) => {

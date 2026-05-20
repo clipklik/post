@@ -15,7 +15,7 @@ const Register = () => {
     email: '', 
     tanggal_lahir: '',
     password: '',
-    department: 'Teknik Informatika' // Set default value agar tidak kosong
+    department: '' // 🔥 PERBAIKAN: Dikosongkan agar tidak ada default
   });
   
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,6 @@ const Register = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  // ✅ FUNGSI HANDLE CHANGE YANG BENAR
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -46,11 +45,10 @@ const Register = () => {
       
       const formattedPassword = formData.tanggal_lahir.replace(/-/g, '');
       
-      // ✅ PERBAIKAN: Memasukkan email ke dalam data yang dikirim ke Backend
       const dataToSubmit = {
         name: formData.name,
         nim: formData.nim, 
-        email: formData.email, // Data email sekarang ikut dikirim
+        email: formData.email, 
         tanggal_lahir: formData.tanggal_lahir,
         password: formattedPassword, 
         department: formData.department
@@ -144,7 +142,6 @@ const Register = () => {
                 </div>
               </div>
 
-              {/* ✅ PERBAIKAN LAYOUT: NIM dan Tanggal Lahir dibuat Sejajar di Desktop, Atas-Bawah di HP */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 {/* NIM */}
@@ -175,7 +172,7 @@ const Register = () => {
                 <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 sm:text-right">*Tgl Lahir akan menjadi Password</p>
               </div>
 
-              {/* ✅ PERBAIKAN LAYOUT: Email dipisah 1 baris penuh agar tidak terjepit */}
+              {/* EMAIL */}
               <div>
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-3">Email Aktif</label>
                 <div className="relative mt-1">
@@ -184,7 +181,7 @@ const Register = () => {
                     type="email" 
                     name="email" 
                     required 
-                    placeholder="Contoh: rosalia@gmail.com"
+                    placeholder="Contoh: issabella@gmail.com"
                     value={formData.email} 
                     onChange={handleChange} 
                     className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm text-slate-800 dark:text-white transition-colors" 
@@ -198,12 +195,16 @@ const Register = () => {
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-3">Program Studi</label>
                 <div className="relative mt-1">
                   <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 z-10" />
-                  <select name="department" value={formData.department} onChange={handleChange} 
+                  <select name="department" value={formData.department} onChange={handleChange} required
                     className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/60 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white appearance-none cursor-pointer relative z-0">
-                    <option value="Teknik Informatika">D3 Informatika</option>
-                    <option value="Teknik Mesin">D3 Mesin</option>
-                    <option value="Teknik Otomotif">D3 Otomotif</option>
-                    <option value="Teknik Elektronika">D3 Elektronika</option>
+                    
+                    {/* 🔥 PERBAIKAN: Menambahkan class bg & text pada setiap option 🔥 */}
+                    <option value="" disabled className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">-- Pilih Program Studi --</option>
+                    <option value="Teknik Informatika" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">D3 Informatika</option>
+                    <option value="Teknik Mesin" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">D3 Mesin</option>
+                    <option value="Teknik Otomotif" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">D3 Otomotif</option>
+                    <option value="Teknik Elektronika" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">D3 Elektronika</option>
+                    
                   </select>
                 </div>
               </div>

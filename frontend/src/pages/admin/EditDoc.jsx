@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiUploadCloud, FiFile, FiX, FiCheckCircle } from 'react-icons/fi';
+import { FiUploadCloud, FiFile, FiX, FiCheckCircle, FiLink } from 'react-icons/fi';
 import api from '../../api/axiosConfig';
 
 const EditDoc = () => {
@@ -13,12 +13,13 @@ const EditDoc = () => {
   const [file, setFile] = useState(null);
   const [formData, setFormData] = useState({
     title: '', 
-    document_author: '', // 🔥 REVISI: Nomenklatur backend
+    document_author: '', 
     year: '', 
-    department: '',      // 🔥 REVISI: Nomenklatur backend
+    department: '', 
     category: '', 
     abstract: '', 
-    keywords: ''
+    keywords: '',
+    external_link: '' // Menambahkan field external_link
   });
 
   useEffect(() => {
@@ -42,7 +43,8 @@ const EditDoc = () => {
           department: doc.department || '',
           category: doc.category || '',
           abstract: extractedAbstract,
-          keywords: extractedKeywords
+          keywords: extractedKeywords,
+          external_link: doc.external_link || '' // Memuat link eksternal jika ada
         });
       } catch (error) {
         console.error('Gagal memuat data dokumen:', error);
@@ -75,7 +77,6 @@ const EditDoc = () => {
       : formData.abstract;
 
     const updateData = new FormData();
-    // 🔥 REVISI: Nama field HARUS 'document_file' agar sesuai multer di backend 🔥
     if (file) updateData.append('document_file', file); 
     
     updateData.append('title', formData.title);
@@ -84,6 +85,7 @@ const EditDoc = () => {
     updateData.append('department', formData.department);
     updateData.append('category', formData.category);
     updateData.append('abstract', finalAbstract); 
+    updateData.append('external_link', formData.external_link); // Menyimpan link eksternal
 
     try {
       await api.put(`/documents/${id}`, updateData, {
@@ -111,7 +113,7 @@ const EditDoc = () => {
       {/* HEADER SECTION */}
       <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Edit Dokumen #{id}</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Edit Dokumen</h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Perbarui informasi dokumen atau ganti file PDF-nya.</p>
         </div>
         <button onClick={() => navigate('/admin/documents')} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors w-fit bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg md:bg-transparent md:px-0 md:py-0">
@@ -181,7 +183,6 @@ const EditDoc = () => {
                 />
               </div>
               
-              {/* 🔥 REVISI FINAL: flex-col total di mobile agar Year/Category stack vertically 🔥 */}
               <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:gap-4">
                 <div>
                   <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Tahun Terbit</label>
@@ -194,13 +195,27 @@ const EditDoc = () => {
                   <select name="category" required value={formData.category} onChange={handleInputChange} 
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors appearance-none cursor-pointer"
                   >
-                    <option value="" className="bg-white dark:bg-[#0B1121]">Pilih...</option>
-                    <option value="Laporan Magang" className="bg-white dark:bg-[#0B1121]">Laporan Magang</option>
+                    <option value="" className="bg-white dark:bg-[#0B1121]">Pilih Kategori</option>
                     <option value="Tugas Akhir" className="bg-white dark:bg-[#0B1121]">Tugas Akhir</option>
-                    <option value="Jurnal Akademik" className="bg-white dark:bg-[#0B1121]">Jurnal Akademik</option>
+                    <option value="Laporan Magang" className="bg-white dark:bg-[#0B1121]">Laporan Magang</option>
                     <option value="Makalah" className="bg-white dark:bg-[#0B1121]">Makalah</option>
+                    <option value="Artikel Ilmiah" className="bg-white dark:bg-[#0B1121]">Artikel Ilmiah</option>
+                    <option value="Jurnal Akademik" className="bg-white dark:bg-[#0B1121]">Jurnal Akademik</option>
+                    <option value="Penelitian" className="bg-white dark:bg-[#0B1121]">Hasil Penelitian</option>
+                    <option value="Buku Ajar" className="bg-white dark:bg-[#0B1121]">Buku Ajar</option>
+                    <option value="Modul Ajar" className="bg-white dark:bg-[#0B1121]">Modul Ajar</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Tautan Publikasi Eksternal */}
+              <div>
+                <label className="flex items-center gap-2 text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  <FiLink className="text-sm" /> Tautan Publikasi Eksternal (Opsional)
+                </label>
+                <input type="url" name="external_link" value={formData.external_link} onChange={handleInputChange} placeholder="https://jurnal.poltekbaja.ac.id/..."
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors" 
+                />
               </div>
             </div>
 
@@ -211,17 +226,20 @@ const EditDoc = () => {
                 <select name="department" required value={formData.department} onChange={handleInputChange} 
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors appearance-none cursor-pointer"
                 >
-                  <option value="" className="bg-white dark:bg-[#0B1121]">Pilih Program Studi</option>
+                  <option value="" className="bg-white dark:bg-[#0B1121]">-- Pilih Program Studi / Bagian --</option>
                   <option value="D3 Teknik Informatika" className="bg-white dark:bg-[#0B1121]">D3 Teknik Informatika</option>
                   <option value="D3 Teknik Mesin" className="bg-white dark:bg-[#0B1121]">D3 Teknik Mesin</option>
                   <option value="D3 Teknik Otomotif" className="bg-white dark:bg-[#0B1121]">D3 Teknik Otomotif</option>
                   <option value="D3 Teknik Elektronika" className="bg-white dark:bg-[#0B1121]">D3 Teknik Elektronika</option>
+                  <option value="Mata Kuliah Umum (MKDU)" className="bg-white dark:bg-[#0B1121]">Mata Kuliah Umum (MKDU)</option>
+                  <option value="Lintas Program Studi" className="bg-white dark:bg-[#0B1121]">Lintas Program Studi</option>
+                  <option value="Pusat / LPPM" className="bg-white dark:bg-[#0B1121]">Pusat / LPPM</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Abstrak Dokumen</label>
-                <textarea name="abstract" required value={formData.abstract} onChange={handleInputChange} rows="4" 
+                <textarea name="abstract" required value={formData.abstract} onChange={handleInputChange} rows="6" placeholder="Tuliskan ringkasan singkat atau latar belakang dokumen ini..."
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-500/20 focus:border-blue-500 dark:focus:border-blue-400 outline-none text-sm font-medium text-slate-900 dark:text-white resize-none transition-colors"
                 ></textarea>
               </div>

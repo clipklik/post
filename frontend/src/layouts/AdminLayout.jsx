@@ -5,7 +5,7 @@ import {
   FiBell, FiMoon, FiSun, FiCheck, FiUserPlus, FiInfo, FiUser, FiMenu, FiX, FiSettings
 } from 'react-icons/fi';
 import axios from "axios";
-import toast from 'react-hot-toast'; // 🔥 1. IMPORT TOAST DI SINI 🔥
+import toast from 'react-hot-toast'; 
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -20,7 +20,6 @@ const AdminLayout = () => {
   const notifRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
   
-  // 🔥 2. RADAR UNTUK MENGINGAT ID NOTIFIKASI TERAKHIR 🔥
   const lastNotifId = useRef(null);
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -33,58 +32,43 @@ const AdminLayout = () => {
 
   const closePopup = () => setModal({ ...modal, isOpen: false });
 
-// 🔥 MODIFIKASI FUNGSI FETCH: MENGIRIM PERINTAH BUKA TAB PENDING & PUTAR SUARA 🔥
-  const fetchNotifications = async () => {
+const fetchNotifications = async () => {
     try {
       const response = await axios.get("http://localhost:5000/api/notifications");
       const newNotifs = response.data;
 
       if (newNotifs.length > 0) {
-        const currentLatestId = newNotifs[0].id;
-        
-        if (lastNotifId.current !== null && currentLatestId > lastNotifId.current) {
+        // Cari notif terbaru yang belum dibaca
+        const latestUnread = newNotifs.find(n => !n.is_read);
+
+        if (latestUnread && (lastNotifId.current === null || latestUnread.id > lastNotifId.current)) {
           
           let notifIcon = '🔔';
           let targetPath = '/admin/dashboard'; 
           let navState = {}; 
 
-          if (newNotifs[0].type === 'user') {
+          if (latestUnread.type === 'user') {
             notifIcon = '👤';
             targetPath = '/admin/users'; 
             navState = { activeTab: 'pending' }; 
-          } else if (newNotifs[0].type === 'doc') {
+          } else if (latestUnread.type === 'doc') {
             notifIcon = '📄';
             targetPath = '/admin/documents'; 
           }
 
-          // 🔥 1. MAINKAN SUARA NOTIFIKASI DI SINI 🔥
           const audio = new Audio('/notif.mp3');
-          audio.play().catch(error => console.log("Browser memblokir autoplay suara", error));
+          audio.play().catch(e => console.log("Suara diblokir browser", e));
 
-          // 🔥 2. TAMPILKAN TOAST VISUAL 🔥
           toast((t) => (
-            <div 
-              onClick={() => {
-                navigate(targetPath, { state: navState }); 
-                toast.dismiss(t.id);
-              }}
-              className="cursor-pointer hover:opacity-80 transition-opacity"
-              title="Klik untuk melihat detail"
-            >
-              <p className="font-bold text-sm">{newNotifs[0].title}</p>
-              <p className="text-xs opacity-90 mt-1 line-clamp-2 leading-relaxed">
-                {newNotifs[0].description}
-              </p>
-              <p className="text-[9px] text-amber-400 font-bold mt-2 uppercase tracking-widest">
-                Klik untuk buka ➔
-              </p>
+            <div onClick={() => { handleNotifClick(latestUnread); toast.dismiss(t.id); }} className="cursor-pointer">
+              <p className="font-bold text-sm">{latestUnread.title}</p>
+              <p className="text-xs opacity-90 mt-1">{latestUnread.description}</p>
             </div>
           ), { icon: notifIcon, duration: 6000 });
         }
         
-        lastNotifId.current = currentLatestId;
+        lastNotifId.current = newNotifs[0].id;
       }
-
       setNotifications(newNotifs);
     } catch (error) {
       console.error("Gagal memuat notifikasi:", error);
@@ -120,6 +104,32 @@ const AdminLayout = () => {
       setNotifications(notifications.map(n => ({ ...n, is_read: 1 })));
     } catch (error) {
       console.error("Gagal menandai dibaca:", error);
+    }
+  };
+
+const handleNotifClick = async (notif) => {
+    setShowNotif(false); 
+    
+    // 1. OPTIMISTIC UPDATE: Ubah data di layar secara instan! Titik biru langsung hilang.
+    setNotifications(prevNotifs => 
+      prevNotifs.map(n => n.id === notif.id ? { ...n, is_read: 1 } : n)
+    );
+
+    // 2. Beritahu database di latar belakang (tanpa perlu ditunggu)
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/${notif.id}/read`);
+      // Kita hapus fetchNotifications() di sini supaya tidak bentrok
+    } catch (err) {
+      console.error("Gagal update read status:", err);
+    }
+
+    // 3. Navigasi ke halaman yang sesuai
+    if (notif.type === 'user') {
+      navigate('/admin/users', { state: { activeTab: 'pending' } });
+    } else if (notif.type === 'doc') {
+      navigate('/admin/documents');
+    } else {
+      navigate('/admin/dashboard');
     }
   };
 
@@ -247,12 +257,19 @@ const AdminLayout = () => {
                       <div className="p-8 text-center text-slate-400 text-xs">Tidak ada notifikasi baru.</div>
                     ) : (
                       notifications.map(notif => (
-                        <div key={notif.id} className={`p-4 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${!notif.is_read ? 'bg-indigo-50/30 dark:bg-indigo-500/5' : ''}`}>
+                        // 🔥 REVISI: TAMBAHKAN ONCLICK DAN STYLING GROUP 🔥
+                        <div 
+                          key={notif.id} 
+                          onClick={() => handleNotifClick(notif)}
+                          className={`p-4 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${!notif.is_read ? 'bg-indigo-50/30 dark:bg-indigo-500/5' : ''}`}
+                        >
                           <div className={`w-8 h-8 md:w-9 md:h-9 shrink-0 rounded-full flex items-center justify-center text-sm md:text-base shadow-sm ${notif.type === 'doc' ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : notif.type === 'user' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'}`}>
                             {notif.type === 'doc' ? <FiFileText /> : notif.type === 'user' ? <FiUserPlus /> : <FiInfo />}
                           </div>
                           <div className="flex-1 min-w-0 pt-0.5">
-                            <p className={`text-[11px] md:text-xs mb-0.5 truncate ${!notif.is_read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-200'}`}>{notif.title}</p>
+                            <p className={`text-[11px] md:text-xs mb-0.5 truncate group-hover:text-amber-500 transition-colors ${!notif.is_read ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-200'}`}>
+                              {notif.title}
+                            </p>
                             <p className="text-[10px] md:text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-1.5">{notif.description}</p>
                           </div>
                           {!notif.is_read && <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>}

@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   FiSearch, FiMonitor, FiSettings, FiTool, FiCpu, 
   FiFileText, FiArrowRight, FiBookOpen, FiLayers, 
-  FiArchive, FiGrid, FiUserCheck
+  FiArchive, FiGrid, FiUserCheck, 
+  FiBook, FiAward, FiClipboard, FiEdit, FiEye 
 } from 'react-icons/fi';
 import axios from 'axios';
-
+import { motion } from 'framer-motion';
 
 const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,7 +17,7 @@ const Home = () => {
   const [stats, setStats] = useState({
     total: 0, views: 0,
     prodi: { ti: 0, tm: 0, to: 0, te: 0 },
-    kategori: { magang: 0, ta: 0, jurnal: 0, makalah: 0 } 
+    kategori: { magang: 0, ta: 0, jurnal: 0, makalah: 0, penelitian: 0, buku: 0, modul: 0, artikel: 0 } 
   });
   const navigate = useNavigate();
 
@@ -45,13 +46,18 @@ const Home = () => {
 
         const magang = docs.filter(d => (d.category || '').toLowerCase().includes('magang')).length;
         const ta = docs.filter(d => (d.category || '').toLowerCase().includes('tugas akhir')).length;
-        const jurnal = docs.filter(d => (d.category || '').toLowerCase().includes('jurnal')).length;
         const makalah = docs.filter(d => (d.category || '').toLowerCase().includes('makalah')).length;
+        const artikel = docs.filter(d => (d.category || '').toLowerCase().includes('artikel')).length;
+        
+        const jurnal = docs.filter(d => (d.category || '').toLowerCase().includes('jurnal')).length;
+        const penelitian = docs.filter(d => (d.category || '').toLowerCase().includes('penelitian')).length;
+        const buku = docs.filter(d => (d.category || '').toLowerCase().includes('buku ajar')).length;
+        const modul = docs.filter(d => (d.category || '').toLowerCase().includes('modul ajar')).length;
 
         setStats({
           total: docs.length, views: totalViews,
           prodi: { ti, tm, to, te },
-          kategori: { magang, ta, jurnal, makalah }
+          kategori: { magang, ta, jurnal, makalah, penelitian, buku, modul, artikel }
         });
       } catch (error) {
         console.error("Gagal mengambil data publik:", error);
@@ -65,6 +71,20 @@ const Home = () => {
     if (searchQuery.trim()) {
       navigate(`/documents?search=${searchQuery}`);
     }
+  };
+
+  // 🔥 FUNGSI BANTUAN UNTUK MEMBUAT "COVER VIRTUAL" 🔥
+  const getCategoryStyle = (category) => {
+    const cat = (category || '').toLowerCase();
+    if (cat.includes('tugas akhir')) return { icon: FiLayers, bg: 'from-blue-500 to-indigo-600', text: 'text-blue-600 dark:text-blue-400' };
+    if (cat.includes('magang')) return { icon: FiBookOpen, bg: 'from-emerald-400 to-teal-500', text: 'text-emerald-600 dark:text-emerald-400' };
+    if (cat.includes('makalah')) return { icon: FiFileText, bg: 'from-rose-400 to-pink-600', text: 'text-rose-600 dark:text-rose-400' };
+    if (cat.includes('artikel')) return { icon: FiEdit, bg: 'from-indigo-400 to-purple-500', text: 'text-indigo-600 dark:text-indigo-400' };
+    if (cat.includes('jurnal')) return { icon: FiArchive, bg: 'from-amber-400 to-orange-500', text: 'text-amber-600 dark:text-amber-400' };
+    if (cat.includes('penelitian')) return { icon: FiAward, bg: 'from-purple-500 to-fuchsia-600', text: 'text-purple-600 dark:text-purple-400' };
+    if (cat.includes('buku')) return { icon: FiBook, bg: 'from-teal-400 to-emerald-600', text: 'text-teal-600 dark:text-teal-400' };
+    if (cat.includes('modul')) return { icon: FiClipboard, bg: 'from-orange-400 to-red-500', text: 'text-orange-600 dark:text-orange-400' };
+    return { icon: FiFileText, bg: 'from-slate-400 to-slate-600', text: 'text-slate-600 dark:text-slate-400' };
   };
 
   const PillarCard = ({ title, desc, count, icon: Icon, filterKey, cardBg, iconWrapperClass, titleColor, borderClass, hoverShadow }) => (
@@ -91,11 +111,7 @@ const Home = () => {
       
       {/* --- HERO SECTION --- */}
       <section className="relative pt-24 pb-40 md:pt-32 md:pb-52 px-4 overflow-hidden border-b border-slate-200 dark:border-slate-800 transition-colors duration-300">
-        <img 
-          src="/wallpaper.png" 
-          alt="Wallpaper" 
-          className="absolute inset-0 w-full h-full object-cover z-0" 
-        />
+        <img src="/wallpaper.png" alt="Wallpaper" className="absolute inset-0 w-full h-full object-cover z-0" />
         <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/85 backdrop-blur-[2px] transition-colors duration-300 z-10"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0)_65%)] dark:hidden z-10 pointer-events-none"></div>
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#FAFAFA] dark:from-slate-900 to-transparent z-10 pointer-events-none transition-colors duration-300"></div>
@@ -123,54 +139,28 @@ const Home = () => {
               placeholder="Telusuri koleksi, penulis, atau kata kunci..." 
               className="w-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-200/50 dark:border-white/10 focus:border-blue-500 dark:focus:border-yellow-400 text-slate-900 dark:text-white pl-14 pr-20 py-4 rounded-full text-base shadow-xl outline-none font-bold transition-all placeholder:text-slate-500" 
             />
-            {/* 🔥 MENGGUNAKAN PANAH (FiArrowRight) AGAR AMAN & MODERN 🔥 */}
-            <button 
-              type="submit" 
-              className="absolute right-2 top-2 bottom-2 aspect-square bg-blue-600 dark:bg-yellow-400 hover:bg-blue-700 dark:hover:bg-yellow-500 text-white dark:text-slate-900 rounded-full shadow-md transition-all flex items-center justify-center z-40 hover:scale-105"
-              title="Mulai Penelusuran"
-            >
+            <button type="submit" className="absolute right-2 top-2 bottom-2 aspect-square bg-blue-600 dark:bg-yellow-400 hover:bg-blue-700 dark:hover:bg-yellow-500 text-white dark:text-slate-900 rounded-full shadow-md transition-all flex items-center justify-center z-40 hover:scale-105" title="Mulai Penelusuran">
               <FiArrowRight className="text-xl" />
             </button>
           </form>
         </div>
       </section>
 
-      {/* --- KATEGORI --- */}
+      {/* --- KATEGORI (GRID EXPANSION: 8 KARTU) --- */}
       <section className="py-12 bg-[#FAFAFA] dark:bg-slate-900 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative -mt-32 z-40">
-            <PillarCard 
-              title="Laporan Magang" filterKey="Magang" desc="Manajemen koleksi dan rekam jejak industri." count={stats.kategori.magang} icon={FiBookOpen} 
-              cardBg="bg-emerald-50 dark:bg-slate-800/40" 
-              iconWrapperClass="bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-md border border-white/20" 
-              titleColor="text-emerald-700 dark:text-emerald-400" 
-              borderClass="border-transparent hover:border-emerald-400 dark:border-emerald-500/40 dark:hover:border-emerald-400" 
-              hoverShadow="hover:shadow-emerald-500/30" 
-            />
-            <PillarCard 
-              title="Tugas Akhir" filterKey="Tugas Akhir" desc="Katalog karya penelitian inovatif mahasiswa." count={stats.kategori.ta} icon={FiLayers} 
-              cardBg="bg-blue-50 dark:bg-slate-800/40" 
-              iconWrapperClass="bg-gradient-to-b from-blue-500 to-blue-600 text-white shadow-md border border-white/20" 
-              titleColor="text-blue-700 dark:text-blue-400" 
-              borderClass="border-transparent hover:border-blue-400 dark:border-blue-500/40 dark:hover:border-blue-400" 
-              hoverShadow="hover:shadow-blue-500/30" 
-            />
-            <PillarCard 
-              title="Jurnal Akademik" filterKey="Jurnal" desc="Publikasi artikel ilmiah hasil riset." count={stats.kategori.jurnal} icon={FiArchive} 
-              cardBg="bg-amber-50 dark:bg-slate-800/40" 
-              iconWrapperClass="bg-gradient-to-b from-amber-500 to-amber-600 text-white shadow-md border border-white/20" 
-              titleColor="text-amber-700 dark:text-amber-400" 
-              borderClass="border-transparent hover:border-amber-400 dark:border-amber-500/40 dark:hover:border-amber-400" 
-              hoverShadow="hover:shadow-amber-500/30" 
-            />
-            <PillarCard 
-              title="Makalah" filterKey="Makalah" desc="Kumpulan referensi karya tulis ilmiah PBJT." count={stats.kategori.makalah} icon={FiFileText} 
-              cardBg="bg-rose-50 dark:bg-slate-800/40" 
-              iconWrapperClass="bg-gradient-to-b from-rose-500 to-rose-600 text-white shadow-md border border-white/20" 
-              titleColor="text-rose-700 dark:text-rose-400" 
-              borderClass="border-transparent hover:border-rose-400 dark:border-rose-500/40 dark:hover:border-rose-400" 
-              hoverShadow="hover:shadow-rose-500/30" 
-            />
+            {/* BARIS 1: KARYA MAHASISWA */}
+            <PillarCard title="Tugas Akhir" filterKey="Tugas Akhir" desc="Katalog karya penelitian inovatif mahasiswa." count={stats.kategori.ta} icon={FiLayers} cardBg="bg-blue-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-blue-500 to-blue-600 text-white shadow-md border border-white/20" titleColor="text-blue-700 dark:text-blue-400" borderClass="border-transparent hover:border-blue-400 dark:border-blue-500/40 dark:hover:border-blue-400" hoverShadow="hover:shadow-blue-500/30" />
+            <PillarCard title="Laporan Magang" filterKey="Magang" desc="Manajemen koleksi dan rekam jejak industri." count={stats.kategori.magang} icon={FiBookOpen} cardBg="bg-emerald-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-md border border-white/20" titleColor="text-emerald-700 dark:text-emerald-400" borderClass="border-transparent hover:border-emerald-400 dark:border-emerald-500/40 dark:hover:border-emerald-400" hoverShadow="hover:shadow-emerald-500/30" />
+            <PillarCard title="Makalah" filterKey="Makalah" desc="Kumpulan referensi karya tulis ilmiah PBJT." count={stats.kategori.makalah} icon={FiFileText} cardBg="bg-rose-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-rose-500 to-rose-600 text-white shadow-md border border-white/20" titleColor="text-rose-700 dark:text-rose-400" borderClass="border-transparent hover:border-rose-400 dark:border-rose-500/40 dark:hover:border-rose-400" hoverShadow="hover:shadow-rose-500/30" />
+            <PillarCard title="Artikel Ilmiah" filterKey="Artikel" desc="Tulisan akademik mahasiswa dan sivitas." count={stats.kategori.artikel} icon={FiEdit} cardBg="bg-indigo-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-md border border-white/20" titleColor="text-indigo-700 dark:text-indigo-400" borderClass="border-transparent hover:border-indigo-400 dark:border-indigo-500/40 dark:hover:border-indigo-400" hoverShadow="hover:shadow-indigo-500/30" />
+
+            {/* BARIS 2: KARYA DOSEN / AKADEMIK */}
+            <PillarCard title="Jurnal Akademik" filterKey="Jurnal" desc="Publikasi artikel ilmiah hasil riset." count={stats.kategori.jurnal} icon={FiArchive} cardBg="bg-amber-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-amber-500 to-amber-600 text-white shadow-md border border-white/20" titleColor="text-amber-700 dark:text-amber-400" borderClass="border-transparent hover:border-amber-400 dark:border-amber-500/40 dark:hover:border-amber-400" hoverShadow="hover:shadow-amber-500/30" />
+            <PillarCard title="Penelitian" filterKey="Penelitian" desc="Laporan hasil penelitian dosen institusi." count={stats.kategori.penelitian} icon={FiAward} cardBg="bg-purple-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-purple-500 to-purple-600 text-white shadow-md border border-white/20" titleColor="text-purple-700 dark:text-purple-400" borderClass="border-transparent hover:border-purple-400 dark:border-purple-500/40 dark:hover:border-purple-400" hoverShadow="hover:shadow-purple-500/30" />
+            <PillarCard title="Buku Ajar" filterKey="Buku Ajar" desc="Buku referensi pembelajaran resmi." count={stats.kategori.buku} icon={FiBook} cardBg="bg-teal-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-teal-500 to-teal-600 text-white shadow-md border border-white/20" titleColor="text-teal-700 dark:text-teal-400" borderClass="border-transparent hover:border-teal-400 dark:border-teal-500/40 dark:hover:border-teal-400" hoverShadow="hover:shadow-teal-500/30" />
+            <PillarCard title="Modul Ajar" filterKey="Modul Ajar" desc="Panduan praktikum dan modul silabus." count={stats.kategori.modul} icon={FiClipboard} cardBg="bg-orange-50 dark:bg-slate-800/40" iconWrapperClass="bg-gradient-to-b from-orange-500 to-orange-600 text-white shadow-md border border-white/20" titleColor="text-orange-700 dark:text-orange-400" borderClass="border-transparent hover:border-orange-400 dark:border-orange-500/40 dark:hover:border-orange-400" hoverShadow="hover:shadow-orange-500/30" />
           </div>
         </div>
       </section>
@@ -215,27 +205,70 @@ const Home = () => {
         </div>
       </section>
 
-      {/* --- BARU DITAMBAHKAN --- */}
+      {/* 🔥 BARU DITAMBAHKAN (DIUBAH MENJADI VIRTUAL COVER CARDS) 🔥 */}
       <section className="pt-12 pb-12 md:pt-16 md:pb-12 bg-[#FAFAFA] dark:bg-slate-900 transition-colors duration-300 relative z-20">
-        <div className="max-w-5xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-end justify-between mb-10">
-            <div><h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">Baru Ditambahkan</h2><p className="text-slate-500 dark:text-slate-400 font-medium">Koleksi ilmiah terbaru yang sudah terbit.</p></div>
-            <Link to="/documents" className="hidden md:flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-yellow-400 font-bold transition-colors">Lihat Semua <FiArrowRight /></Link>
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-2">Baru Ditambahkan</h2>
+              <p className="text-slate-500 dark:text-slate-400 font-medium">Koleksi ilmiah terbaru yang sudah terbit.</p>
+            </div>
+            <Link to="/documents" className="hidden md:flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-yellow-400 font-bold transition-colors">
+              Lihat Semua <FiArrowRight />
+            </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {recentDocs.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-slate-400 dark:text-slate-500 font-medium border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl bg-white dark:bg-slate-800">Belum ada dokumen yang dipublikasikan.</div>
+              <div className="col-span-full py-12 text-center text-slate-400 dark:text-slate-500 font-medium border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl bg-white dark:bg-slate-800">
+                Belum ada dokumen yang dipublikasikan.
+              </div>
             ) : (
-              recentDocs.map((doc, i) => (
-                <Link key={i} to={`/detail/${doc.id}`} className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all group flex gap-5 items-start border border-slate-100 dark:border-slate-700">
-                  <div className="w-14 h-14 bg-slate-50 dark:bg-slate-700 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 dark:group-hover:bg-yellow-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors shrink-0"><FiFileText className="text-2xl" /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2"><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{doc.category}</span><span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span><span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{doc.year}</span></div>
-                    <h3 className="font-bold text-slate-800 dark:text-white text-lg leading-snug mb-1 group-hover:text-blue-600 dark:group-hover:text-yellow-400 transition-colors line-clamp-2">{doc.title}</h3>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium line-clamp-1">{doc.document_author || 'Anonim'}</p>
-                  </div>
-                </Link>
-              ))
+              recentDocs.map((doc, i) => {
+                const style = getCategoryStyle(doc.category);
+                const CoverIcon = style.icon;
+
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: i * 0.05 }}
+                    key={i}
+                  >
+                    <Link 
+                      to={`/detail/${doc.id}`} 
+                      className="flex flex-col h-full bg-white dark:bg-[#1E293B] rounded-[2rem] p-4 shadow-sm hover:shadow-2xl hover:-translate-y-2 border border-slate-100 dark:border-slate-700/50 transition-all duration-300 group overflow-hidden"
+                    >
+                      {/* COVER VIRTUAL */}
+                      <div className={`w-full aspect-[4/3] rounded-[1.5rem] bg-gradient-to-br ${style.bg} flex items-center justify-center mb-5 relative overflow-hidden shadow-inner`}>
+                        <CoverIcon className="text-white/30 text-[80px] group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                        <span className="absolute bottom-3 left-3 bg-white/20 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-white/30">
+                          {doc.category || 'Dokumen'}
+                        </span>
+                      </div>
+
+                      {/* DETAIL DOKUMEN */}
+                      <div className="px-2 flex-1 flex flex-col">
+                        <h3 className="font-black text-slate-800 dark:text-white text-lg leading-snug mb-2 group-hover:text-blue-600 dark:group-hover:text-yellow-400 transition-colors line-clamp-2">
+                          {doc.title}
+                        </h3>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 line-clamp-1 mb-4">
+                          {doc.document_author || 'Penulis Anonim'}
+                        </p>
+                        
+                        <div className="mt-auto border-t border-slate-100 dark:border-slate-700 pt-4 flex items-center justify-between text-xs font-bold text-slate-400 dark:text-slate-500">
+                          <span className="truncate max-w-[60%]">{doc.department?.replace('Teknik ', 'T. ')}</span>
+                          <div className="flex items-center gap-3">
+                            <span>{doc.year || '-'}</span>
+                            <span className="flex items-center gap-1"><FiEye /> {doc.views || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })
             )}
           </div>
         </div>

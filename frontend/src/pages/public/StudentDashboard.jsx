@@ -6,7 +6,6 @@ import {
 } from 'react-icons/fi';
 import axios from 'axios';
 
-
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const [myDocs, setMyDocs] = useState([]);
@@ -16,7 +15,7 @@ const StudentDashboard = () => {
   
   const [activeTab, setActiveTab] = useState('upload');
 
-  // 🔥 STATE BARU UNTUK MODAL REVIEW ALA DICODING 🔥
+  // STATE UNTUK MODAL REVIEW ALA DICODING
   const [reviewModal, setReviewModal] = useState({
     isOpen: false,
     doc: null
@@ -26,39 +25,58 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    const currentUser = JSON.parse(localStorage.getItem('user'));
+    const initialUser = JSON.parse(localStorage.getItem('user'));
     
-    if (!currentUser) {
+    if (!initialUser) {
       navigate('/login');
       return;
     }
-    
-    setUser(currentUser);
 
-    const fetchDashboardData = async () => {
+    const loadDashboardData = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/documents');
-        const allDocs = response.data;
+        let activeUser = initialUser; 
         
-        // 1. FILTER RIWAYAT UPLOAD
-        const filteredUploads = allDocs.filter(doc => doc.document_author === currentUser.name);
+        // 1. Sinkronisasi Profil dengan "Cache Buster"
+        try {
+          const userRes = await axios.get(`http://localhost:5000/api/auth/users/${initialUser.id}?t=${new Date().getTime()}`);
+          const freshUser = userRes.data;
+          activeUser = { ...initialUser, name: freshUser.name, role: freshUser.role, department: freshUser.department };
+          
+          if (JSON.stringify(initialUser) !== JSON.stringify(activeUser)) {
+            localStorage.setItem('user', JSON.stringify(activeUser));
+          }
+        } catch (err) { console.error("Gagal sinkron profil:", err); }
+
+        setUser(activeUser); // Update UI Profil secara live!
+
+        // 2. Sinkronisasi Dokumen dengan "Cache Buster"
+        const docRes = await axios.get(`http://localhost:5000/api/documents?t=${new Date().getTime()}`);
+        const allDocs = docRes.data;
+        
+        const filteredUploads = allDocs.filter(doc => doc.document_author === activeUser.name);
         setMyDocs(filteredUploads);
 
-        // 2. FILTER BOOKMARK
-        const savedBookmarkIds = JSON.parse(localStorage.getItem(`bookmarks_${currentUser.id}`)) || [];
-        const filteredBookmarks = allDocs.filter(doc => 
-          savedBookmarkIds.includes(String(doc.id)) 
-        );
+        const savedBookmarkIds = JSON.parse(localStorage.getItem(`bookmarks_${activeUser.id}`)) || [];
+        const filteredBookmarks = allDocs.filter(doc => savedBookmarkIds.includes(String(doc.id)));
         setBookmarkedDocs(filteredBookmarks);
 
       } catch (error) {
-        console.error("Gagal mengambil data:", error);
+        console.error("Gagal memuat dashboard:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchDashboardData();
+    // Jalankan saat tab pertama kali dimuat
+    loadDashboardData();
+
+    // 🔥 JURUS PAMUNGKAS: Jalankan ulang otomatis setiap kali tab di-klik/difokuskan! 🔥
+    window.addEventListener('focus', loadDashboardData);
+
+    // Bersihkan sensor saat user pindah rute
+    return () => {
+      window.removeEventListener('focus', loadDashboardData);
+    };
   }, [navigate]);
 
   const formatCategory = (category) => {
@@ -69,18 +87,30 @@ const StudentDashboard = () => {
     return category; 
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans pb-20 relative transition-colors">
-      
-      {/* HEADER SECTION */}
-      <section className="relative pt-32 md:pt-40 pb-16 px-4 overflow-hidden border-b border-slate-200 dark:border-slate-800">
-        <img src="/wallpaper.png" alt="Wallpaper" className="absolute inset-0 w-full h-full object-cover opacity-10 z-0" />
-        <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/70 backdrop-blur-sm z-10"></div>
-        <div className="max-w-5xl mx-auto relative z-20">
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Halo, {user?.name?.split(' ')[0]}!</h1>
-          <p className="text-slate-600 dark:text-slate-400 font-medium">Kelola karya ilmiah Anda dan pantau status validasinya.</p>
-        </div>
-      </section>
+return (
+  <div className="min-h-screen bg-slate-50 dark:bg-slate-900 font-sans pb-20 relative transition-colors">
+    
+    {/* HEADER SECTION */}
+    <section className="relative pt-[88px] md:pt-[96px] pb-16 px-4 overflow-hidden border-b border-slate-200 dark:border-slate-800">
+      <img
+        src="/wallpaper.png"
+        alt="Wallpaper"
+        className="absolute inset-0 w-full h-full object-cover opacity-10 z-0"
+      />
+
+      <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/70 backdrop-blur-sm z-10"></div>
+
+      <div className="max-w-5xl mx-auto relative z-20">
+        <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+          {/* 🔥 Pastikan user ada sebelum di split 🔥 */}
+          Halo, {user?.name ? user.name.split(' ')[0] : 'Pengguna'}!
+        </h1>
+
+        <p className="text-slate-600 dark:text-slate-400 font-medium">
+          Kelola karya ilmiah Anda dan pantau status validasinya.
+        </p>
+      </div>
+    </section>
 
       {/* KONTEN UTAMA */}
       <div className="max-w-5xl mx-auto px-4 -mt-8 relative z-30">
@@ -177,7 +207,6 @@ const StudentDashboard = () => {
                                   )}
                                 </td>
                                 <td className="py-5 px-4 text-right">
-                                  {/* 🔥 LOGIKA TOMBOL BERUBAH: Jika Revisi, muncul tombol "Lihat Review" 🔥 */}
                                   {isRevisi ? (
                                     <button 
                                       onClick={() => setReviewModal({ isOpen: true, doc: doc })}
@@ -264,14 +293,11 @@ const StudentDashboard = () => {
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* 🔥 MODAL DETAIL REVIEW (ALA DICODING) 🔥 */}
-      {/* ========================================================= */}
+      {/* MODAL DETAIL REVIEW */}
       {reviewModal.isOpen && reviewModal.doc && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#131C31] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
             
-            {/* Header Modal */}
             <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800/60">
               <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-white">Hasil Review Dokumen</h2>
@@ -282,21 +308,15 @@ const StudentDashboard = () => {
               </button>
             </div>
 
-            {/* Body Modal (Bisa di-scroll) */}
             <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-transparent">
               
-              {/* Stepper Progress ala Dicoding */}
               <div className="mb-8 p-6 bg-white dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
                 <h3 className="text-center text-sm font-bold text-slate-500 dark:text-slate-400 mb-6 uppercase tracking-widest">Aktivitas Terbaru</h3>
                 
                 <div className="flex items-center justify-between relative">
-                  {/* Garis penghubung belakang */}
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 dark:bg-slate-700 z-0 rounded-full"></div>
-                  
-                  {/* Garis hijau sampai step 2 */}
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1/2 h-1 bg-emerald-500 z-0 rounded-full"></div>
 
-                  {/* Step 1: Upload */}
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
                       <FiCheck strokeWidth={3} />
@@ -304,7 +324,6 @@ const StudentDashboard = () => {
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload</span>
                   </div>
 
-                  {/* Step 2: Review Selesai */}
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30">
                       <FiCheck strokeWidth={3} />
@@ -312,7 +331,6 @@ const StudentDashboard = () => {
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Direview</span>
                   </div>
 
-                  {/* Step 3: Ditolak / Revisi */}
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md shadow-rose-500/30 ring-4 ring-white dark:ring-[#131C31]">
                       <FiX strokeWidth={3} />
@@ -322,7 +340,6 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
-          {/* Area Catatan Reviewer */}
               <div className="bg-amber-50/50 dark:bg-amber-500/5 border border-amber-200/60 dark:border-amber-500/20 rounded-2xl overflow-hidden">
                 <div className="bg-amber-100/50 dark:bg-amber-500/10 px-5 py-3 border-b border-amber-200/60 dark:border-amber-500/20 flex items-center gap-2">
                   <FiAlertCircle className="text-amber-600 dark:text-amber-400" />
@@ -333,7 +350,6 @@ const StudentDashboard = () => {
                     {reviewModal.doc.rejection_reason || "Tidak ada rincian catatan yang diberikan. Mohon periksa kembali format dokumen Anda secara umum."}
                   </p>
 
-                  {/* 🔥 LINK DOKUMENTASI GAMBAR (REVISI KAMU) 🔥 */}
                   {reviewModal.doc.rejection_assets && (
                     <div className="mt-4 pt-4 border-t border-amber-200/50 dark:border-amber-500/20">
                       <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-2">Dokumentasi Kesalahan:</p>
@@ -349,10 +365,8 @@ const StudentDashboard = () => {
                   )}
                 </div>
               </div>
-
             </div>
 
-            {/* Footer Modal (Aksi) */}
             <div className="p-6 border-t border-slate-100 dark:border-slate-800/60 bg-white dark:bg-[#131C31] flex flex-col sm:flex-row justify-end gap-3">
               <button 
                 onClick={closeReviewModal}
@@ -367,13 +381,12 @@ const StudentDashboard = () => {
                 <FiEdit2 /> Perbaiki Sekarang
               </button>
             </div>
-
           </div>
         </div>
       )}
 
-    </div>
-  );
+  </div>
+);
 };
 
 export default StudentDashboard;

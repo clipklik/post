@@ -133,8 +133,8 @@ exports.getAllUsers = (req, res) => {
 // ========================================================
 exports.getUserById = (req, res) => {
     const userId = req.params.id;
-    // 🔥 PERBAIKAN: Memanggil kolom email asli untuk dimuat ke Form Edit 🔥
-    const sql = "SELECT id, full_name AS name, nim, email, role, department FROM users WHERE id = ?";
+    // 🔥 PERBAIKAN: Tambahkan pemanggilan kolom 'username' sebagai pencadangan (fallback)
+    const sql = "SELECT id, full_name AS name, nim, username, email, role, department FROM users WHERE id = ?";
     
     db.query(sql, [userId], (err, result) => {
       if (err) {
@@ -217,42 +217,51 @@ exports.deleteUser = (req, res) => {
 // ========================================================
 exports.updateUser = async (req, res) => {
     const userId = req.params.id;
-    // Menangkap field standar dari form React
     const { password, name, nim, email, role, department } = req.body;
 
-    // KASUS 1: Jika request berisi password (Reset Sandi dari Admin)
+    // 1. Jika request berisi password (Reset Sandi dari Admin)
     if (password) {
         try {
             const salt = await bcrypt.genSalt(10);
             const hashedPassword = await bcrypt.hash(password, salt);
-
             const query = 'UPDATE users SET password = ? WHERE id = ?';
             
             db.query(query, [hashedPassword, userId], (err, result) => {
-                if (err) {
-                    console.error('❌ Error reset sandi:', err.message);
-                    return res.status(500).json({ message: 'Kesalahan database saat mereset sandi.' });
-                }
+                if (err) return res.status(500).json({ message: 'Kesalahan database saat mereset sandi.' });
                 return res.status(200).json({ message: 'Sandi pengguna berhasil direset!' });
             });
         } catch (error) {
-            console.error('❌ Error Bcrypt saat reset:', error.message);
             return res.status(500).json({ message: 'Gagal memproses enkripsi sandi baru.' });
         }
     } 
-    // KASUS 2: Jika request mengubah profil (Nama, NIM, Email, Role, Prodi)
-    else if (name || nim || email || role) {
-        // 🔥 PERBAIKAN: Memasukkan email ke dalam query Update 🔥
-        const query = 'UPDATE users SET full_name = ?, nim = ?, username = ?, email = ?, role = ?, department = ? WHERE id = ?';
-        db.query(query, [name, nim, nim, email, role, department, userId], (err, result) => {
-            if (err) {
-                console.error('❌ Error update profil:', err.message);
-                return res.status(500).json({ message: 'Gagal memperbarui profil pengguna.' });
-            }
-            return res.status(200).json({ message: 'Profil pengguna berhasil diperbarui!' });
+    // 2. Jika Update Profil (Nama, Email, Department, dll)
+    else if (name) {
+        // Langkah A: Ambil nama lama dari database untuk dicari di tabel documents
+        db.query('SELECT full_name FROM users WHERE id = ?', [userId], (err, results) => {
+            if (err || results.length === 0) return res.status(500).json({ message: 'User tidak ditemukan.' });
+            
+            const oldName = results[0].full_name; // Nama lama
+            const finalEmail = email ? email : null;
+
+            // Langkah B: Update di tabel users (Termasuk Department)
+            const queryUser = 'UPDATE users SET full_name = ?, nim = ?, username = ?, email = ?, role = ?, department = ? WHERE id = ?';
+            db.query(queryUser, [name, nim, nim, finalEmail, role, department, userId], (err) => {
+                if (err) {
+                    console.error("Error Update User:", err);
+                    return res.status(500).json({ message: 'Gagal update profil.' });
+                }
+
+                // Langkah C: SINKRONISASI - Update semua dokumen milik user ini
+                const queryDoc = 'UPDATE documents SET document_author = ? WHERE document_author = ?';
+                db.query(queryDoc, [name, oldName], (syncErr) => {
+                    if (syncErr) console.error("Gagal sinkron nama di dokumen:", syncErr);
+                    
+                    return res.status(200).json({ message: 'Profil dan data dokumen berhasil diperbarui!' });
+                });
+            });
         });
     } else {
-        return res.status(400).json({ message: 'Data update tidak valid.' });
+        return res.status(400).json({ message: 'Data yang dikirim kosong.' });
     }
 };
 
@@ -466,7 +475,7 @@ exports.forgotPassword = (req, res) => {
                                 Jika Anda tidak meminta permintaan ini, abaikan email ini. Tautan hanya berlaku 15 menit.
                             </p>
                             <p style="margin: 0; font-size: 11px; color: #94a3b8; text-align: center; padding-top: 10px;">
-                                &copy; 2026 Pusat Komputer Politeknik Baja Tegal.<br>Ini adalah email otomatis, mohon tidak membalas email ini.
+                                &copy; 2026 Politeknik Baja Tegal.<br>Ini adalah email otomatis, mohon tidak membalas email ini.
                             </p>
                         </div>
 

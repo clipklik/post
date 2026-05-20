@@ -37,7 +37,8 @@ const ManageUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/auth/users");
+      // 🔥 KODE AJAIB: Menambahkan timestamp agar browser TIDAK BISA pakai cache lama 🔥
+      const response = await axios.get(`http://localhost:5000/api/auth/users?t=${new Date().getTime()}`);
       setUsers(response.data);
     } catch (error) {
       console.error("Gagal mengambil data pengguna:", error);

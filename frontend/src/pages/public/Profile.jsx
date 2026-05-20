@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { 
   FiUser, FiLock, FiShield, FiCheckCircle, 
-  FiSave, FiAlertCircle, FiEye, FiEyeOff 
+  FiSave, FiAlertCircle, FiEye, FiEyeOff, FiMail 
 } from 'react-icons/fi';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
 const Profile = () => {
   const [user, setUser] = useState(null);
+  const [fullUserData, setFullUserData] = useState(null); 
   
   // State untuk form ganti password
   const [oldPassword, setOldPassword] = useState('');
@@ -15,7 +16,10 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // State untuk Toggle Mata (Show/Hide)
+  // State untuk form ganti email
+  const [email, setEmail] = useState('');
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
+
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -23,7 +27,15 @@ const Profile = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+
+      axios.get(`http://localhost:5000/api/auth/users/${parsedUser.id}`)
+        .then(res => {
+          setEmail(res.data.email || '');
+          setFullUserData(res.data);
+        })
+        .catch(err => console.error("Gagal mengambil data profil:", err));
     }
   }, []);
 
@@ -77,6 +89,42 @@ const Profile = () => {
     }
   };
 
+  const handleUpdateEmail = async (e) => {
+    e.preventDefault();
+    if (!fullUserData) return;
+
+    setIsEmailLoading(true);
+    try {
+      await axios.put(`http://localhost:5000/api/auth/users/${user.id}`, {
+        name: fullUserData.name,
+        // 🔥 PERBAIKAN KRUSIAL: Jaring Pengaman NIM agar username tidak hilang 🔥
+        nim: fullUserData.nim || fullUserData.username,
+        role: fullUserData.role,
+        department: fullUserData.department,
+        email: email
+      });
+
+      Swal.fire({
+        icon: 'success', title: 'Berhasil!',
+        text: 'Email pemulihan Anda berhasil diperbarui.',
+        background: document.documentElement.classList.contains('dark') ? '#1E293B' : '#fff',
+        color: document.documentElement.classList.contains('dark') ? '#fff' : '#1E293B'
+      });
+      
+      setFullUserData({ ...fullUserData, email: email });
+
+    } catch (error) {
+      Swal.fire({
+        icon: 'error', title: 'Gagal',
+        text: error.response?.data?.message || 'Terjadi kesalahan saat menyimpan email.',
+        background: document.documentElement.classList.contains('dark') ? '#1E293B' : '#fff',
+        color: document.documentElement.classList.contains('dark') ? '#fff' : '#1E293B'
+      });
+    } finally {
+      setIsEmailLoading(false);
+    }
+  };
+
   if (!user) return <div className="p-8 pt-32 text-center text-slate-500 font-bold animate-pulse">Memuat data profil...</div>;
 
   return (
@@ -86,7 +134,7 @@ const Profile = () => {
         
         {/* KARTU INFORMASI PROFIL (KIRI) */}
         <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-[#131C31] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center">
+          <div className="bg-white dark:bg-[#131C31] p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center sticky top-28">
             
             <div className="w-full border-b border-slate-100 dark:border-slate-800 pb-3 mb-5 flex items-center justify-center gap-2">
               <FiUser className="text-indigo-500" size={18} />
@@ -98,7 +146,11 @@ const Profile = () => {
             </div>
             
             <h2 className="text-base font-bold text-slate-900 dark:text-white text-center leading-tight">{user.name}</h2>
-            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 mb-3">{user.nim_nidn || user.username || '-'}</p>
+            
+            {/* 🔥 PERBAIKAN TAMPILAN: Menarik NIM dari Database agar tidak strip (-) 🔥 */}
+            <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5 mb-3">
+              {fullUserData ? (fullUserData.nim || fullUserData.username) : '-'}
+            </p>
 
             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest mb-5 ${
               user.role === 'admin' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' :
@@ -122,8 +174,10 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* FORM GANTI PASSWORD (KANAN) */}
-        <div className="lg:col-span-2">
+        {/* KOLOM KANAN (FORM GANTI SANDI & EMAIL) */}
+        <div className="lg:col-span-2 flex flex-col gap-5 md:gap-6">
+          
+          {/* KARTU 1: FORM GANTI PASSWORD */}
           <div className="bg-white dark:bg-[#131C31] p-5 md:p-7 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
             
             <div className="w-full border-b border-slate-100 dark:border-slate-800 pb-3 mb-5 flex items-center justify-start gap-2">
@@ -148,7 +202,6 @@ const Profile = () => {
                 <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Sandi Saat Ini</label>
                 <div className="relative mt-1.5">
                   <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  {/* 🔥 REVISI: Tambah class [&::-ms-reveal]:hidden untuk membunuh mata bawaan Edge 🔥 */}
                   <input 
                     type={showOldPassword ? "text" : "password"} 
                     value={oldPassword} 
@@ -228,6 +281,46 @@ const Profile = () => {
             </form>
 
           </div>
+
+          {/* KARTU 2: FORM INFORMASI KONTAK (EMAIL) */}
+          <div className="bg-white dark:bg-[#131C31] p-5 md:p-7 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            
+            <div className="w-full border-b border-slate-100 dark:border-slate-800 pb-3 mb-5 flex items-center justify-start gap-2">
+              <FiMail className="text-blue-500" size={18} />
+              <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Informasi Kontak</h3>
+            </div>
+
+            <form onSubmit={handleUpdateEmail} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Email Pemulihan</label>
+                <div className="relative mt-1.5">
+                  <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input 
+                    type="email" 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} required
+                    placeholder="nama@email.com"
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-lg focus:border-blue-500 outline-none dark:text-white transition-all text-sm font-medium"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2 ml-1">
+                  Pastikan email ini aktif. Link reset sandi akan dikirimkan ke alamat ini jika Anda lupa kata sandi.
+                </p>
+              </div>
+
+              <div className="pt-3 flex justify-end">
+                <button 
+                  type="submit" 
+                  disabled={isEmailLoading || !fullUserData}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-70 text-white px-6 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-500/20"
+                >
+                  {isEmailLoading ? 'Menyimpan...' : <><FiSave size={14}/> Perbarui Email</>}
+                </button>
+              </div>
+            </form>
+
+          </div>
+
         </div>
 
       </div>

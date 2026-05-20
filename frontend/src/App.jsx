@@ -14,7 +14,6 @@ import DocumentDetail from './pages/public/DocumentDetail';
 import PdfViewer from './pages/public/PdfViewer';
 import Login from './pages/public/Login';
 import Register from './pages/public/Register';
-import StudentUpload from './pages/public/StudentUpload';
 import StudentDashboard from './pages/public/StudentDashboard';
 import StudentEditDoc from './pages/public/StudentEditDoc'; 
 import Profile from './pages/public/Profile'; 
@@ -34,6 +33,7 @@ import AddUser from './pages/admin/AddUser';
 import ManageUsers from './pages/admin/ManageUsers';
 import Settings from './pages/admin/Settings'; 
 import { Toaster } from 'react-hot-toast';
+import UploadDoc from './pages/Upload';
 
 const App = () => {
   return (
@@ -64,9 +64,9 @@ const App = () => {
           <Route path="/profile" element={<Profile />} />
           
           {/* Fitur Khusus Mahasiswa */}
-          <Route path="upload" element={<StudentUpload />} />
           <Route path="dashboard-student" element={<StudentDashboard />} />
           <Route path="edit-upload/:id" element={<StudentEditDoc />} /> 
+          <Route path="upload" element={<UploadDoc/>} />
         </Route>
 
         {/* Viewer dipisah agar bisa full screen tanpa navbar/footer standar */}

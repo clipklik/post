@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const logRoutes = require('./routes/logRoutes');
 const notifController = require('./controllers/notifController');
+const notifRoutes = require('./routes/notifRoutes');
 
 // 🔥 INI YANG KURANG TADI: Import Backup Controller 🔥
 const backupController = require('./controllers/backupController');
@@ -33,6 +34,7 @@ app.use('/api/system', systemRoutes);
 // Rute API Notifikasi
 app.get('/api/notifications', notifController.getNotifications);
 app.put('/api/notifications/read', notifController.markAllAsRead);
+app.use('/api/notifications', notifRoutes);
 
 // Rute Backup Database
 app.get('/api/backup', backupController.exportDatabase);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiUploadCloud, FiFile, FiX, FiCheckCircle, FiLink } from 'react-icons/fi';
-import api from '../../api/axiosConfig'; // Sesuaikan dengan path file axios kamu
+import { FiUploadCloud, FiFile, FiX, FiCheckCircle, FiUser, FiLink, FiArrowLeft, FiAlertCircle } from 'react-icons/fi';
+import api from '../../api/axiosConfig'; 
 
 const StudentEditDoc = () => {
   const { id } = useParams(); 
@@ -9,6 +9,7 @@ const StudentEditDoc = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState('');
   
   const [file, setFile] = useState(null);
   const [formData, setFormData] = useState({
@@ -19,16 +20,40 @@ const StudentEditDoc = () => {
     category: '', 
     abstract: '', 
     keywords: '',
-    external_url: '' // 🔥 Tambahan: Kolom Link Eksternal
+    external_url: '' 
   });
 
-  useEffect(() => {
+  // 🔥 FITUR LIMIT UKURAN FILE PER KATEGORI 🔥
+  const categoryLimits = {
+    'Tugas Akhir': 15,
+    'Skripsi': 15,
+    'Laporan Magang': 10,
+    'Makalah': 5,
+    'Artikel Ilmiah': 5,
+    'Jurnal Akademik': 5,
+    'default': 15
+  };
+
+  const validateFile = (file, category) => {
+    const limitMB = categoryLimits[category] || categoryLimits['default'];
+    const sizeMB = file.size / (1024 * 1024);
+    if (sizeMB > limitMB) {
+      return `Ukuran file maksimal untuk kategori "${category || 'Dokumen'}" adalah ${limitMB}MB. (File Anda: ${sizeMB.toFixed(1)}MB)`;
+    }
+    return null;
+  };
+
+useEffect(() => {
+    window.scrollTo(0, 0);
+    
+    // 🔥 1. AMBIL DATA AKUN TERBARU DARI LOKAL 🔥
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+
     const fetchDoc = async () => {
       try {
         const response = await api.get(`/documents/${id}`);
         const doc = response.data;
         
-        // Memisahkan abstrak dan kata kunci
         let extractedAbstract = doc.abstract || '';
         let extractedKeywords = '';
         if (extractedAbstract.includes('Kata Kunci: ')) {
@@ -39,17 +64,18 @@ const StudentEditDoc = () => {
 
         setFormData({
           title: doc.title || '',
-          document_author: doc.document_author || '',
+          // 🔥 2. PAKSA GUNAKAN NAMA & PRODI DARI AKUN (Bukan dari dokumen lama) 🔥
+          document_author: storedUser.name || doc.document_author || '',
+          department: storedUser.department || doc.department || '',
+          
           year: doc.year || '',
-          department: doc.department || '',
           category: doc.category || '',
           abstract: extractedAbstract,
           keywords: extractedKeywords,
-          external_url: doc.external_url || ''
+          external_url: doc.external_url || doc.external_link || ''
         });
       } catch (error) {
-        console.error('Gagal memuat data dokumen:', error);
-        alert('Dokumen tidak ditemukan!');
+        console.error('Gagal memuat data:', error);
         navigate('/dashboard-student');
       } finally {
         setInitialLoading(false);
@@ -58,19 +84,40 @@ const StudentEditDoc = () => {
     fetchDoc();
   }, [id, navigate]);
 
+  useEffect(() => {
+    if (file && formData.category) {
+      const sizeError = validateFile(file, formData.category);
+      setError(sizeError || '');
+    }
+  }, [formData.category, file]);
+
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
-      setFile(selectedFile);
-    } else {
-      alert('Mohon unggah file dalam format PDF.');
+    if (!selectedFile) return;
+
+    if (selectedFile.type !== 'application/pdf') {
+      setError('Format file tidak didukung. Harap unggah PDF.');
+      e.target.value = null;
+      return;
     }
+
+    const sizeError = validateFile(selectedFile, formData.category);
+    if (sizeError) {
+      setError(sizeError);
+      e.target.value = null;
+      return;
+    }
+
+    setFile(selectedFile);
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (error) return; 
+
     setLoading(true);
 
     const finalAbstract = formData.keywords 
@@ -78,13 +125,12 @@ const StudentEditDoc = () => {
       : formData.abstract;
 
     const updateData = new FormData();
-    // 🔥 PERBAIKAN ERROR 500: Nama field wajib 'document_file' 🔥
     if (file) updateData.append('document_file', file); 
     
     updateData.append('title', formData.title);
     updateData.append('document_author', formData.document_author); 
     updateData.append('year', formData.year);
-    updateData.append('department', formData.department);
+    updateData.append('department', formData.department); 
     updateData.append('category', formData.category);
     updateData.append('abstract', finalAbstract); 
     updateData.append('external_url', formData.external_url); 
@@ -93,194 +139,228 @@ const StudentEditDoc = () => {
       await api.put(`/documents/${id}`, updateData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setSuccess(true);
-      setTimeout(() => navigate('/dashboard-student'), 2000);
-    } catch (error) {
-      console.error('Gagal mengirim revisi dokumen:', error);
-      alert('Gagal mengirim dokumen. Cek koneksi atau coba lagi.');
-    } finally {
+      
+      // Biarkan loading sebentar untuk memutar animasi cantik
+      setTimeout(() => {
+        setLoading(false);
+        setSuccess(true);
+        setTimeout(() => navigate('/dashboard-student'), 2000);
+      }, 1000);
+
+    } catch (err) {
+      console.error('Gagal:', err);
+      setError(err.response?.data?.message || 'Terjadi kesalahan server saat mengunggah dokumen.');
       setLoading(false);
     }
   };
 
   if (initialLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] dark:bg-[#0B1121]">
-      <div className="p-10 text-center font-bold text-slate-500 dark:text-slate-400 animate-pulse">
-        Memuat Data Dokumen...
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0B1121]">
+      <div className="relative w-16 h-16">
+        <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-800 rounded-full"></div>
+        <div className="absolute inset-0 border-4 border-blue-600 dark:border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1121] py-10 px-4 transition-colors duration-300">
-      <div className="max-w-4xl mx-auto font-sans pb-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B1121] transition-colors duration-500 py-20 px-4 sm:px-6 lg:px-8 relative">
+      <div className="max-w-4xl mx-auto mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         {/* HEADER SECTION */}
-        <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">Kirim Ulang Dokumen</h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Perbaiki data dokumen Anda sesuai catatan revisi Admin.</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Kirim Ulang Dokumen</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">
+              Perbaiki data dokumen Anda dan unggah file revisi jika diperlukan.
+            </p>
           </div>
-          <button onClick={() => navigate('/dashboard-student')} className="text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors w-fit bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-lg md:bg-transparent md:px-0 md:py-0">
-            &larr; Batal & Kembali
+          <button 
+            type="button" 
+            onClick={() => navigate('/dashboard-student')} 
+            className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 dark:hover:text-yellow-400 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:shadow-md w-fit"
+          >
+            <FiArrowLeft /> Batal & Kembali
           </button>
         </div>
 
-        {/* SUCCESS MESSAGE */}
-        {success && (
-          <div className="mb-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 p-4 rounded-xl flex items-center gap-3 font-medium animate-pulse transition-colors">
-            <FiCheckCircle className="text-xl shrink-0" /> Dokumen revisi berhasil dikirim! Menunggu validasi Admin...
+        {/* NOTIFIKASI ERROR */}
+        {error && (
+          <div className="mb-6 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 p-4 rounded-2xl flex items-start gap-3 font-medium animate-in fade-in slide-in-from-top-2">
+            <FiAlertCircle className="text-xl shrink-0 mt-0.5" />
+            <p className="text-sm">{error}</p>
           </div>
         )}
 
-        {/* FORM CONTAINER */}
-        <div className="bg-white dark:bg-[#131C31] rounded-2xl md:rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-300">
-          <form onSubmit={handleSubmit} className="p-5 md:p-8 relative">
-            
-            {/* UPLOAD FILE SECTION */}
-            <div className="mb-8 md:mb-10">
-              <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-                Ganti File Dokumen (PDF)
-              </label>
+        {/* FORM UTAMA */}
+        <div className="bg-white dark:bg-[#131C31] rounded-[2rem] shadow-xl shadow-slate-200/40 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden relative">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 dark:bg-blue-900/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+
+          <form onSubmit={handleSubmit} className="p-6 md:p-10 relative z-10">
+            {/* AREA UPLOAD FILE */}
+            <div className="mb-10">
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Ganti File Dokumen (PDF) <span className="font-medium normal-case text-slate-400 ml-1">- Opsional</span></label>
               {!file ? (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 dark:border-slate-700 border-dashed rounded-2xl cursor-pointer bg-slate-50 dark:bg-[#0B1121] hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-300 dark:hover:border-amber-500/50 transition-all group">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-                    <FiUploadCloud className="text-3xl text-slate-400 dark:text-slate-500 group-hover:text-amber-500 mb-2 transition-colors shrink-0" />
-                    <p className="mb-1 text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium px-4">Biarkan kosong jika tidak ingin mengganti file PDF.</p>
-                    <p className="text-[10px] md:text-xs text-amber-600 dark:text-amber-400 font-bold group-hover:underline mt-1">Klik di sini untuk mengganti PDF</p>
+                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-slate-200 dark:border-slate-700 border-dashed rounded-2xl cursor-pointer bg-slate-50/50 dark:bg-[#0B1121]/50 hover:bg-blue-50/50 dark:hover:bg-slate-800/80 hover:border-blue-400 dark:hover:border-yellow-400/50 transition-all group">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                      <FiUploadCloud className="text-3xl text-slate-400 group-hover:text-blue-600 dark:group-hover:text-yellow-400 transition-colors" />
+                    </div>
+                    <p className="mb-1 text-sm text-slate-600 dark:text-slate-300 font-medium">
+                      <span className="font-bold text-blue-600 dark:text-yellow-400">Klik di sini</span> jika ingin mengganti PDF lama.
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">Biarkan kosong jika hanya revisi teks.</p>
                   </div>
                   <input type="file" className="hidden" accept="application/pdf" onChange={handleFileChange} />
                 </label>
               ) : (
-                <div className="flex items-center justify-between p-3 md:p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 bg-amber-500 text-white flex items-center justify-center rounded-lg shrink-0">
-                      <FiFile className="text-xl" />
+                <div className="flex items-center justify-between p-4 bg-blue-50/80 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl shadow-sm transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center rounded-xl shadow-inner">
+                      <FiFile className="text-2xl" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</p>
-                      <p className="text-[10px] md:text-xs text-amber-600 dark:text-amber-400 font-bold">Akan menggantikan file lama</p>
+                    <div>
+                      <p className="text-sm font-black text-slate-800 dark:text-slate-200 truncate max-w-[200px] md:max-w-md">{file.name}</p>
+                      <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-0.5">{(file.size / 1024 / 1024).toFixed(2)} MB - Akan menggantikan file lama</p>
                     </div>
                   </div>
-                  <button type="button" onClick={() => setFile(null)} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-colors shrink-0">
+                  <button type="button" onClick={() => setFile(null)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/20 rounded-xl transition-colors">
                     <FiX className="text-xl" />
                   </button>
                 </div>
               )}
             </div>
 
-            {/* MAIN COLUMNS */}
-            <div className="flex flex-col md:grid md:grid-cols-2 gap-6 md:gap-8">
-              
-              {/* LEFT COLUMN */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* KOLOM KIRI */}
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Judul Dokumen <span className="text-rose-500">*</span>
-                  </label>
-                  <input type="text" name="title" required value={formData.title} onChange={handleInputChange} 
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors" 
-                  />
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Judul Dokumen <span className="text-rose-500">*</span></label>
+                  <input type="text" name="title" required value={formData.title} onChange={handleInputChange} placeholder="Contoh: Sistem Informasi Akademik..." 
+                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-yellow-400/10 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white transition-all" />
                 </div>
                 
                 <div>
-                  <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Nama Penulis <span className="text-rose-500">*</span>
-                  </label>
-                  <input type="text" name="document_author" required value={formData.document_author} onChange={handleInputChange} 
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors" 
-                  />
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Nama Penulis</label>
+                  <div className="relative">
+                    <FiUser className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" name="document_author" disabled value={formData.document_author} 
+                      className="w-full pl-12 pr-5 py-3.5 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl outline-none text-sm font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed italic" />
+                  </div>
                 </div>
-                
-                <div className="flex flex-col gap-5 md:grid md:grid-cols-2 md:gap-4">
+
+                <div className="grid grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      Tahun Terbit <span className="text-rose-500">*</span>
-                    </label>
-                    <input type="number" name="year" required value={formData.year} onChange={handleInputChange} 
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors" 
-                    />
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Tahun Terbit <span className="text-rose-500">*</span></label>
+                    <input type="number" name="year" required value={formData.year} onChange={handleInputChange} placeholder="2026" 
+                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-yellow-400/10 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white transition-all" />
                   </div>
                   <div>
-                    <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      Kategori <span className="text-rose-500">*</span>
-                    </label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Kategori <span className="text-rose-500">*</span></label>
                     <select name="category" required value={formData.category} onChange={handleInputChange} 
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors appearance-none cursor-pointer"
-                    >
-                      <option value="" className="bg-white dark:bg-[#0B1121]">Pilih...</option>
-                      <option value="Laporan Magang" className="bg-white dark:bg-[#0B1121]">Laporan Magang</option>
-                      <option value="Tugas Akhir" className="bg-white dark:bg-[#0B1121]">Tugas Akhir</option>
-                      <option value="Jurnal Akademik" className="bg-white dark:bg-[#0B1121]">Jurnal Akademik</option>
-                      <option value="Makalah" className="bg-white dark:bg-[#0B1121]">Makalah</option>
+                      className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-yellow-400/10 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white cursor-pointer appearance-none transition-all">
+                      <option value="" disabled className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Pilih...</option>
+                      <option value="Tugas Akhir" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Tugas Akhir</option>
+                      <option value="Laporan Magang" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Laporan Magang</option>
+                      <option value="Makalah" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Makalah</option>
+                      <option value="Artikel Ilmiah" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Artikel Ilmiah</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Program Studi <span className="text-rose-500">*</span>
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">
+                    <FiLink className="text-sm" /> Tautan Eksternal <span className="font-medium normal-case text-slate-400">(Opsional)</span>
                   </label>
-                  <select name="department" required value={formData.department} onChange={handleInputChange} 
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="" className="bg-white dark:bg-[#0B1121]">Pilih Program Studi</option>
-                    <option value="D3 Teknik Informatika" className="bg-white dark:bg-[#0B1121]">D3 Teknik Informatika</option>
-                    <option value="D3 Teknik Mesin" className="bg-white dark:bg-[#0B1121]">D3 Teknik Mesin</option>
-                    <option value="D3 Teknik Otomotif" className="bg-white dark:bg-[#0B1121]">D3 Teknik Otomotif</option>
-                    <option value="D3 Teknik Elektronika" className="bg-white dark:bg-[#0B1121]">D3 Teknik Elektronika</option>
-                  </select>
+                  <input type="url" name="external_url" value={formData.external_url} onChange={handleInputChange} placeholder="https://jurnal.poltekbaja.ac.id/..." 
+                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-yellow-400/10 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white transition-all" />
                 </div>
               </div>
 
-              {/* RIGHT COLUMN */}
+              {/* KOLOM KANAN */}
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Abstrak Dokumen <span className="text-rose-500">*</span>
-                  </label>
-                  <textarea name="abstract" required value={formData.abstract} onChange={handleInputChange} rows="5" 
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white resize-none transition-colors"
-                  ></textarea>
-                </div>
-                
-                <div>
-                  <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Kata Kunci</label>
-                  <input type="text" name="keywords" value={formData.keywords} onChange={handleInputChange} placeholder="Pisahkan dengan koma (Contoh: Teknologi, Sistem, Web)"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors" 
-                  />
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Program Studi</label>
+                  <input type="text" name="department" disabled value={formData.department || 'Prodi belum diatur'} 
+                    className="w-full px-5 py-3.5 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl outline-none text-sm font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed italic" />
                 </div>
 
-                {/* KOLOM LINK EKSTERNAL */}
                 <div>
-                  <label className="block text-[11px] md:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Link Repository Eksternal (Opsional)
-                  </label>
-                  <div className="relative">
-                    <FiLink className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
-                    <input type="url" name="external_url" value={formData.external_url} onChange={handleInputChange} placeholder="Contoh: https://github.com/..."
-                      className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-amber-500/10 dark:focus:ring-amber-500/20 focus:border-amber-500 dark:focus:border-amber-400 outline-none text-sm font-medium text-slate-900 dark:text-white transition-colors" 
-                    />
-                  </div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Abstrak / Deskripsi <span className="text-rose-500">*</span></label>
+                  <textarea name="abstract" required value={formData.abstract} onChange={handleInputChange} rows="5" placeholder="Tuliskan ringkasan atau abstrak dokumen di sini..." 
+                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-yellow-400/10 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white resize-none leading-relaxed transition-all"></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Kata Kunci (Keywords)</label>
+                  <input type="text" name="keywords" value={formData.keywords} onChange={handleInputChange} placeholder="Pisahkan dengan koma (contoh: web, iot, mesin)" 
+                    className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-yellow-400/10 focus:border-blue-500 dark:focus:border-yellow-400 outline-none text-sm font-bold text-slate-800 dark:text-white transition-all" />
                 </div>
               </div>
             </div>
 
-            {/* FOOTER ACTIONS */}
-            <div className="mt-8 md:mt-10 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse md:flex-row justify-end gap-3 md:gap-4 transition-colors">
-              <button type="button" onClick={() => navigate('/dashboard-student')} className="px-6 py-3.5 md:py-3 font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 md:bg-transparent md:dark:bg-transparent rounded-xl transition-colors w-full md:w-auto text-sm md:text-base text-center shrink-0">
-                Batal
+            {/* BUTTON SUBMIT */}
+            <div className="mt-12 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse md:flex-row justify-end gap-4">
+              <button 
+                type="button" 
+                onClick={() => navigate('/dashboard-student')} 
+                className="px-8 py-3.5 font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors w-full md:w-auto text-center"
+              >
+                Batalkan
               </button>
-              <button type="submit" disabled={loading} className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-3.5 md:py-3 rounded-xl font-bold shadow-lg shadow-amber-500/30 dark:shadow-none transition-all flex items-center justify-center w-full md:w-auto text-sm md:text-base shrink-0">
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : 'Kirim Ulang Dokumen'}
+              <button 
+                type="submit" 
+                disabled={loading || success} 
+                className="bg-blue-600 hover:bg-blue-700 dark:bg-yellow-400 dark:hover:bg-yellow-500 text-white dark:text-slate-900 px-10 py-3.5 rounded-xl font-black shadow-lg shadow-blue-600/30 dark:shadow-yellow-400/20 transition-all flex items-center justify-center min-w-[220px] disabled:opacity-70 disabled:cursor-not-allowed hover:-translate-y-1 w-full md:w-auto"
+              >
+                Kirim Revisi Dokumen
               </button>
             </div>
-            
+
           </form>
         </div>
       </div>
+
+      {/* 🔥 POPUP LOADING & SUCCESS OVERLAY 🔥 */}
+      {(loading || success) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white dark:bg-[#131C31] border border-slate-200 dark:border-slate-700 rounded-[2.5rem] p-10 w-full max-w-sm shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300 relative overflow-hidden">
+            
+            {/* Dekorasi Cahaya di dalam Modal */}
+            <div className={`absolute -top-16 -right-16 w-32 h-32 rounded-full blur-3xl opacity-50 ${success ? 'bg-emerald-400' : 'bg-blue-400 dark:bg-yellow-400'}`}></div>
+
+            {loading && !success ? (
+              <>
+                <div className="relative w-24 h-24 mb-6">
+                  <div className="absolute inset-0 border-4 border-slate-100 dark:border-slate-800 rounded-full"></div>
+                  <div className="absolute inset-0 border-4 border-blue-600 dark:border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="absolute inset-0 flex items-center justify-center text-blue-600 dark:text-yellow-400">
+                    <FiUploadCloud size={32} className="animate-pulse" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Mengirim Revisi...</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 px-2 leading-relaxed">
+                  Mohon tunggu sebentar, dokumen sedang diperbarui ke server.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                  <FiCheckCircle size={48} className="animate-in zoom-in duration-300 delay-150" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Berhasil Direvisi!</h3>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 px-2 leading-relaxed">
+                  Data berhasil diperbarui. Menunggu persetujuan ulang dari Admin.
+                </p>
+                <div className="mt-6 flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-2 rounded-full animate-pulse">
+                  Mengalihkan halaman...
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -7,7 +7,6 @@ const EditUser = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // 1. STATE FORM DATA
   const [formData, setFormData] = useState({
     name: '',
     nim: '',
@@ -20,20 +19,18 @@ const EditUser = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // 2. MENGAMBIL DATA DARI BACKEND
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/api/auth/users/${id}`);
-        // 🔥 PERBAIKAN 1: Tangkap datanya dari response.data
         const userData = response.data;
         
         setFormData({
           name: userData.name || '',
-          nim: userData.nim || userData.nim_nidn || '', 
+          nim: userData.nim || userData.username || '', 
           email: userData.email || '',
           department: userData.department || '',
-          role: userData.role || 'user' // Default ke user/mahasiswa
+          role: userData.role || 'user' 
         });
       } catch (err) {
         setError("Gagal memuat data pengguna.");
@@ -45,12 +42,10 @@ const EditUser = () => {
     fetchUser();
   }, [id]);
 
-  // 🔥 PERBAIKAN 2: Fungsi untuk menangani ketikan di keyboard
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 3. MENYIMPAN DATA KE BACKEND
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -58,7 +53,6 @@ const EditUser = () => {
 
     try {
       await axios.put(`http://localhost:5000/api/auth/users/${id}`, formData);
-      // Kembali ke halaman kelola pengguna setelah sukses
       navigate('/admin/users', { state: { activeTab: 'approved' } });
     } catch (err) {
       setError(err.response?.data?.message || "Terjadi kesalahan saat menyimpan data.");
@@ -71,8 +65,6 @@ const EditUser = () => {
 
   return (
     <div className="p-4 md:p-8 md:pt-6 max-w-3xl mx-auto">
-      
-      {/* HEADER & TOMBOL KEMBALI */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Edit Profil Pengguna</h1>
@@ -89,11 +81,9 @@ const EditUser = () => {
         </div>
       )}
 
-      {/* FORM BUNGKUS */}
       <div className="bg-white dark:bg-[#131C31] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
           
-          {/* NAMA LENGKAP */}
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Nama Lengkap</label>
             <div className="relative">
@@ -104,7 +94,6 @@ const EditUser = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* NIM / USERNAME */}
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Username / NIM</label>
               <div className="relative">
@@ -113,8 +102,6 @@ const EditUser = () => {
                   className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm font-medium text-slate-800 dark:text-slate-200 transition-all" />
               </div>
             </div>
-
-            {/* EMAIL AKTIF */}
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Email Pemulihan</label>
               <div className="relative">
@@ -126,33 +113,33 @@ const EditUser = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* PROGRAM STUDI / BAGIAN */}
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Program Studi / Bagian</label>
               <div className="relative">
                 <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
                 <select name="department" value={formData.department} onChange={handleChange}
                   className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm font-bold text-slate-800 dark:text-slate-200 appearance-none cursor-pointer relative z-0">
-                  <option value="">-- Pilih Bagian --</option>
-                  <option value="Teknik Informatika">D3 Teknik Informatika</option>
-                  <option value="Teknik Mesin">D3 Teknik Mesin</option>
-                  <option value="Teknik Otomotif">D3 Teknik Otomotif</option>
-                  <option value="Teknik Elektronika">D3 Teknik Elektronika</option>
-                  <option value="Pusat / Manajemen">Pusat / Manajemen (Staf)</option>
+                  {/* 🔥 PERBAIKAN: Value D3 disamakan dengan teks, warna dark mode diatur 🔥 */}
+                  <option className="bg-white dark:bg-slate-800" value="">-- Pilih Bagian --</option>
+                  <option className="bg-white dark:bg-slate-800" value="D3 Teknik Informatika">D3 Teknik Informatika</option>
+                  <option className="bg-white dark:bg-slate-800" value="D3 Teknik Mesin">D3 Teknik Mesin</option>
+                  <option className="bg-white dark:bg-slate-800" value="D3 Teknik Otomotif">D3 Teknik Otomotif</option>
+                  <option className="bg-white dark:bg-slate-800" value="D3 Teknik Elektronika">D3 Teknik Elektronika</option>
+                  <option className="bg-white dark:bg-slate-800" value="Mata Kuliah Umum (MKDU)">Mata Kuliah Umum (MKDU)</option>
+                  <option className="bg-white dark:bg-slate-800" value="Lintas Program Studi">Lintas Program Studi</option>
+                  <option className="bg-white dark:bg-slate-800" value="Pusat / LPPM">Pusat / LPPM</option>
                 </select>
               </div>
             </div>
-
-            {/* HAK AKSES (ROLE) */}
             <div>
               <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Hak Akses (Role)</label>
               <div className="relative">
                 <FiShield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
                 <select name="role" value={formData.role} onChange={handleChange} required
                   className="w-full pl-11 pr-4 py-3.5 bg-slate-50 dark:bg-[#0B1121] border border-slate-200 dark:border-slate-700 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm font-bold text-slate-800 dark:text-slate-200 appearance-none cursor-pointer relative z-0">
-                  <option value="user">Mahasiswa</option>
-                  <option value="dosen">Dosen</option>
-                  <option value="admin">Administrator (Perpus)</option>
+                  <option className="bg-white dark:bg-slate-800" value="user">Mahasiswa</option>
+                  <option className="bg-white dark:bg-slate-800" value="dosen">Dosen</option>
+                  <option className="bg-white dark:bg-slate-800" value="admin">Administrator (Perpus)</option>
                 </select>
               </div>
             </div>
@@ -167,10 +154,8 @@ const EditUser = () => {
               )}
             </button>
           </div>
-
         </form>
       </div>
-
     </div>
   );
 };
