@@ -1,3 +1,4 @@
+
 # 🎓 E-Repository Politeknik Baja Tegal (PBJT)
 
 Sistem Informasi Repositori Institusi berbasis web yang dirancang untuk mengelola, menyimpan, dan mempublikasikan karya ilmiah serta dokumen akademik secara digital, terstruktur, dan aman.
@@ -8,7 +9,10 @@ Aplikasi ini dikembangkan untuk membantu proses digitalisasi dokumen kampus agar
 
 ## ✨ Fitur Utama
 
-Aplikasi dirancang dengan antarmuka modern dan dilengkapi berbagai fitur pengelolaan serta keamanan dokumen digital.
+Aplikasi dirancang dengan antarmuka modern dan dilengkapi berbagai fitur pengelolaan, keamanan dokumen digital, hingga dukungan *Progressive Web App* (PWA).
+
+### 📱 Progressive Web App (PWA) Ready
+Aplikasi dapat diinstal langsung ke layar utama perangkat (Desktop/Mobile) layaknya aplikasi *native*. Dilengkapi dengan *Service Worker* untuk memberikan performa *loading* yang super cepat dan dukungan *caching* pintar.
 
 ### 🛡️ Proteksi Dokumen Cerdas
 Menggunakan sistem *viewer* dokumen khusus yang dilengkapi fitur:
@@ -17,16 +21,20 @@ Menggunakan sistem *viewer* dokumen khusus yang dilengkapi fitur:
 - Watermark Otomatis pada PDF
 *(Fitur ini diterapkan menggunakan library `pdf-lib` untuk membantu mengurangi risiko penyalahgunaan dan pencurian hak cipta dokumen akademik).*
 
-### 📧 Sistem Pemulihan Akun (Auto-Email)
-- Fitur **Lupa Password** mandiri bagi pengguna.
-- Sistem akan mengirimkan link reset sandi aman berbasis token (*Expired* dalam 15 menit) langsung ke kotak masuk email pengguna.
+### 📁 Validasi File Dinamis (Smart Validation)
+Sistem unggah dokumen dilengkapi pembatasan ukuran file PDF secara dinamis dan otomatis berdasarkan kategori yang dipilih pengguna (contoh: Tugas Akhir maks 15MB, Makalah maks 5MB), mencegah *server overload*.
 
-### 👥 Manajemen Pengguna Kompleks
+### 👥 Manajemen Pengguna & Auto-Sync Data
 Sistem mendukung pengelolaan pengguna secara terstruktur oleh Admin, termasuk:
 - Persetujuan (Approve) akun mahasiswa baru.
 - Penguncian akses pengguna (*Lock/Unlock* akun).
 - Hapus dan Edit Data Pengguna.
 - **Aksi Massal:** Mengunci/membuka akses berdasarkan tahun angkatan, serta aksi massal menggunakan *checkbox*.
+- **Auto-Sync Data:** Saat Admin mengubah profil pengguna (Nama, Prodi), riwayat kepenulisan dokumen pengguna tersebut akan otomatis disinkronkan.
+
+### 📧 Sistem Pemulihan Akun (Auto-Email)
+- Fitur **Lupa Password** mandiri bagi pengguna.
+- Sistem akan mengirimkan link reset sandi aman berbasis token (*Expired* dalam 15 menit) langsung ke kotak masuk email pengguna.
 
 ### 📊 Import Data Excel (Integrasi Cepat)
 Admin dapat melakukan pendaftaran mahasiswa secara massal menggunakan file Excel (`.xlsx`), sehingga proses sinkronisasi dengan data kampus (misal: GoFeeder) menjadi lebih praktis. Sistem dilengkapi:
@@ -44,6 +52,7 @@ Aplikasi dibangun menggunakan teknologi modern berbasis JavaScript (MERN-like St
 
 ### 🎨 Frontend
 - **React.js (Vite):** Membangun UI berbasis komponen yang super cepat.
+- **Vite PWA Plugin:** Mengubah website menjadi *Progressive Web App*.
 - **Tailwind CSS:** Framework CSS *utility-first* untuk desain responsif, elegan, dan mendukung Dark/Light Mode.
 - **Framer Motion:** Library animasi untuk menciptakan transisi halaman yang *smooth*.
 - **React Hot Toast:** Sistem notifikasi popup modern.
@@ -107,7 +116,7 @@ npx nodemon server.js
 
 ```
 
-### 4️⃣ Setup Frontend
+### 4️⃣ Setup Frontend (Mode Development)
 
 Buka terminal baru, arahkan ke folder `frontend`, lalu jalankan:
 
@@ -117,6 +126,19 @@ npm install
 npm run dev
 
 ```
+
+### 5️⃣ Menjalankan Mode PWA (Production Ready)
+
+Untuk menguji fitur *Progressive Web App* (seperti menginstal aplikasi ke Desktop/HP dan mencoba *Offline Cache*), Anda harus menjalankan versi *build*:
+
+```bash
+cd frontend
+npm run build
+npm run preview
+
+```
+
+Buka link *preview* yang diberikan (biasanya `http://localhost:4173`). Ikon "Install" akan muncul di sisi kanan *address bar* browser Anda.
 
 ---
 
