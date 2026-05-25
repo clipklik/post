@@ -1,8 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
-require('./utils/waBot');
+
+// dotenv — cuma dipake kalo ada file .env (local development)
+try { require('dotenv').config(); } catch(e) {}
+
+// waBot — WhatsApp client, skip kalo di Vercel (no browser)
+let waClient = null;
+try { waClient = require('./utils/waBot'); } catch(e) {
+    console.log('⚠️ waBot tidak bisa di-load (Vercel/no browser):', e.message);
+}
 
 const multer = require('multer'); // <-- TAMBAHKAN INI
 const upload = multer({ dest: 'uploads/' }); // <-- TAMBAHKAN INI
