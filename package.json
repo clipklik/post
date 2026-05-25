@@ -1,5 +1,24 @@
 {
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "node backend/server.js"
+  },
   "dependencies": {
-    "framer-motion": "^12.39.0"
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "framer-motion": "^12.39.0",
+    "jsonwebtoken": "^9.0.3",
+    "muhammara": "^6.0.4",
+    "multer": "^2.1.1",
+    "mysql2": "^3.22.3",
+    "nodemailer": "^8.0.7",
+    "pdf-lib": "^1.17.1",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.34.7",
+    "xlsx": "^0.18.5"
   }
 }
