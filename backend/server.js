@@ -41,8 +41,15 @@ app.use('/api/notifications', notifRoutes);
 app.get('/api/backup', backupController.exportDatabase);
 app.post('/api/restore', upload.single('database_file'), backupController.restoreDatabase);
 
-// === JALANKAN SERVER ===
+// === JALANKAN SERVER (hanya jika bukan Vercel) ===
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`✅ Server Backend berjalan di port ${PORT}`);
-});
+
+// Untuk Vercel: export app sebagai serverless function
+module.exports = app;
+
+// Untuk local development: jalanin server langsung
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`✅ Server Backend berjalan di port ${PORT}`);
+    });
+}
